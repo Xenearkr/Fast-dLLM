@@ -1,54 +1,67 @@
 # Fast-dLLM v2: Efficient Block-Diffusion Large Language Model
 
 ## Progress 2026.05.24 使用须知
+
 对本仓库添加的架构说明如下：
-v2/base_models/ref
+
+### `v2/base_models/ref`
+
 - 包含了对Qwen2.5-7B-Instruct进行Fast包装的重要代码组件，以防误删，上传
 
-v2/base_models
+### `v2/base_models`
+
 - 提醒：关于这个文件夹内部哪些文件要跟踪，请关注 Fast-dLLM/.gitignore 最后部分。总体而言，一方面，大文件不宜加入跟踪，即使在历史状态中出现，也可能导致无法上传的问题；另一方面，大文件都是不怎么改的，可以直接从HF上下载，重点都在其中的代码文件部分。
 - 使用的AR模型基座。
 - 目前包含：Fast-dLLM-v2, Qwen2.5-7B-Instruct, Qwen3-8B
 - 其中Fast-dLLM-v2和Qwen3-8B保留了原始形态（即跟直接从Hugging Face上下载的没区别），Qwen2.5-7B-Instruct的配置已经包装成了Fast类模型
 - 具体怎么包装的呢？见下文，里面有👀符号的，文件内容请参考v2/base_model_ref里面的文件
-    符号体系：
-    - copy-paste：直接把Fast里面的这个文件复制粘贴/覆盖过去
-    - keep：保留Qwen里面的这个文件
-    - delete：不用管的文件
-    
-    下面是改后的Qwen2.5目录
-    权重区
-    ├── model-00001-of-00004.safetensors
-    ├── model-00002-of-00004.safetensors
-    ├── model-00003-of-00004.safetensors
-    ├── model-00004-of-00004.safetensors
-    添加区：这些文件是只有Fast里面有的
-    ├── modeling.py ✅️copy-paste
-    ├── configuration.py ✅️copy-paste
-    ├── added_tokens.json ✅️copy-paste
-    ├── chat_template.jinja ✅️copy-paste
-    ├── latest ❌️delete
-    ├── special_tokens_map.json ✅️copy-paste
-    修改区：这些文件是两个仓库中都有的
-    ├── config.json 👀 大改
-    ├── generation_config.json 👀 change 4.53.1/4.37.0
-    ├── merges.txt ✅️keep
-    ├── model.safetensors.index.json 👀 modify 1 line
-    ├── tokenizer_config.json✅️ copy-paste
-    ├── tokenizer.json✅️copy-paste
-    └── vocab.json ✅️keep
 
+#### 符号体系
 
-v2/train_scripts
+- copy-paste：直接把Fast里面的这个文件复制粘贴/覆盖过去
+- keep：保留Qwen里面的这个文件
+- delete：不用管的文件
+
+#### 下面是改后的Qwen2.5目录
+
+```text
+权重区
+├── model-00001-of-00004.safetensors
+├── model-00002-of-00004.safetensors
+├── model-00003-of-00004.safetensors
+├── model-00004-of-00004.safetensors
+添加区：这些文件是只有Fast里面有的
+├── modeling.py ✅️copy-paste
+├── configuration.py ✅️copy-paste
+├── added_tokens.json ✅️copy-paste
+├── chat_template.jinja ✅️copy-paste
+├── latest ❌️delete
+├── special_tokens_map.json ✅️copy-paste
+修改区：这些文件是两个仓库中都有的
+├── config.json 👀 大改
+├── generation_config.json 👀 change 4.53.1/4.37.0
+├── merges.txt ✅️keep
+├── model.safetensors.index.json 👀 modify 1 line
+├── tokenizer_config.json✅️ copy-paste
+├── tokenizer.json✅️copy-paste
+└── vocab.json ✅️keep
+```
+
+### `v2/train_scripts`
+
 - 添加finetune_a2d_v0.sh，主要训练脚本
 - 已有finetune脚本产生的文件需转换呈safetensors，添加convert_model.sh和convert_inplace_to_safetensors.py
 
-v2/utils
+### `v2/utils`
+
 - 一些辅助函数，主要用于将原始Llama-Nemotron转换成可以套用finetune脚本的格式
 - 当然很奇怪的一点是：这个工作理论上开发者做过一次，为啥不直接提供复现方法？
 
-v2/data
+### `v2/data`
+
 - Llama-Nemotron数据集放在这里，太大了我就不上传了，我的组织结构如下：
+
+```text
 .
 ├── alpaca
 │   ├── test
@@ -71,11 +84,15 @@ v2/data
     │   └── train-00049.json
     └── use # 我第一次只用了转换好的1/50，所以单独拎出来了第一个分片
         └── train-00000.json
+```
 
-v2/eval_codetask.sh 评测代码任务，需要额外evalplus支持，效果不理想
-v2/eval_tmp.sh 评测mmlu，本质就是eval_script.sh的一部分
+### 评测脚本
 
-其他说明：
+- v2/eval_codetask.sh 评测代码任务，需要额外evalplus支持，效果不理想
+- v2/eval_tmp.sh 评测mmlu，本质就是eval_script.sh的一部分
+
+### 其他说明
+
 1. 训练所得模型自动放在v2/output_models/下
 2. 训练调用的部分代码涉及Fast-dLLM/third_party/lmflow等文件夹，不在Fast-dLLM/v2目录下
 
@@ -83,49 +100,58 @@ v2/eval_tmp.sh 评测mmlu，本质就是eval_script.sh的一部分
 ## Progress 2026.05.23 进度说明
 
 ### Target 1 直接运行
+
 - 目前都是全量微调，未适配LoRA
 - GPU配置不同，导致：1. 容易报错OOM，2. loss波动大；建议：再试试调整参数？
 - 除了按照下面的要求安装requirements之外，还要安装flash-attn 2.8.3
 
 ### Target 2 换 Fast 为 Qwen 2.5
+
 - 已经把包装套好了，套的对不对还不好说...但就loss趋势来看似乎可以...
 
 ### Target 3 换 Alpaca 为 Llama-Nemotron
+
 - 放在v2/data/底下，只选了一部分，并做了格式调整
 
 ### Target 4 评测
-- 评测MMLU对比如下：
-# qwen 2.5 + llama-nemotron 训了1000 steps
-|      Groups      |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
-|------------------|------:|------|------|------|---|-----:|---|-----:|
-|mmlu              |      2|none  |      |acc   |↑  |0.6716|±  |0.0037|
-| - humanities     |      2|none  |      |acc   |↑  |0.5911|±  |0.0067|
-| - other          |      2|none  |      |acc   |↑  |0.7184|±  |0.0078|
-| - social sciences|      2|none  |      |acc   |↑  |0.7836|±  |0.0072|
-| - stem           |      2|none  |      |acc   |↑  |0.6362|±  |0.0083|
 
-# 直接用Fast-dllm-v2-7B
-|      Groups      |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
-|------------------|------:|------|------|------|---|-----:|---|-----:|
-|mmlu              |      2|none  |      |acc   |↑  |0.6797|±  |0.0037|
-| - humanities     |      2|none  |      |acc   |↑  |0.5951|±  |0.0066|
-| - other          |      2|none  |      |acc   |↑  |0.7377|±  |0.0076|
-| - social sciences|      2|none  |      |acc   |↑  |0.7930|±  |0.0072|
-| - stem           |      2|none  |      |acc   |↑  |0.6384|±  |0.0083|
+- 评测MMLU对比如下：
+
+#### qwen 2.5 + llama-nemotron 训了1000 steps
+
+| Groups | Version | Filter | n-shot | Metric |  | Value |  | Stderr |
+|---|---:|---|---|---|---|---:|---|---:|
+| mmlu | 2 | none |  | acc | ↑ | 0.6716 | ± | 0.0037 |
+| - humanities | 2 | none |  | acc | ↑ | 0.5911 | ± | 0.0067 |
+| - other | 2 | none |  | acc | ↑ | 0.7184 | ± | 0.0078 |
+| - social sciences | 2 | none |  | acc | ↑ | 0.7836 | ± | 0.0072 |
+| - stem | 2 | none |  | acc | ↑ | 0.6362 | ± | 0.0083 |
+
+#### 直接用Fast-dllm-v2-7B
+
+| Groups | Version | Filter | n-shot | Metric |  | Value |  | Stderr |
+|---|---:|---|---|---|---|---:|---|---:|
+| mmlu | 2 | none |  | acc | ↑ | 0.6797 | ± | 0.0037 |
+| - humanities | 2 | none |  | acc | ↑ | 0.5951 | ± | 0.0066 |
+| - other | 2 | none |  | acc | ↑ | 0.7377 | ± | 0.0076 |
+| - social sciences | 2 | none |  | acc | ↑ | 0.7930 | ± | 0.0072 |
+| - stem | 2 | none |  | acc | ↑ | 0.6384 | ± | 0.0083 |
 
 - 评测coding任务：
   - 需要额外下载evalplus支持？直接在eval脚本里把task-name改成mbpp，会跑出0.0？见仓库issues
   - 添加了evalplus支持之后，似乎结果不太理想？【以下都是直接用Fast-dllm-v2-7B测的】
+
+    ```text
     mbpp (base tests)
     pass@1: 0.325
     mbpp+ (base + extra tests)
     pass@1: 0.265
+    ```
+
   - humaneval需要后训练吗？（可以肯定的是mbpp不需要）
 
 
-
-
-==========================================================================================
+---
 
 ## 下面是原来的内容
 
