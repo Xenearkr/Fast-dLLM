@@ -1,15 +1,32 @@
 #!/bin/bash
+
+"""
+运行方式（必须在项目根目录下）：bash train_scripts/finetune_a2d_v0.sh
+
+训练前确认如下事项：
+1. 模型加载路径、数据集加载路径
+2. output_dir的命名是否符合你的想法
+3. 调整参数，比如用max-steps控制本轮迭代次数等
+"""
+
+
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 # 尝试：缓解动态分配尺寸导致的碎片问题
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-model_name_or_path="/home/u-shengbf/Codes/Model-Qwen-2.5-7B"
-dataset_path=data/alpaca/train_conversation
+# 按需调整：模型加载路径
+model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
+# 按需调整：数据集加载路径
+# dataset_path=data/alpaca/train_conversation
+dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
+
 timestamp=$(date +"%Y%m%d_%H%M%S")
 output_dir="output_models/finetune_fast_dLLM_7B_${timestamp}" # 引入时间戳命名
+
 deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11000" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
+
 # Use system/conda CUDA; if CUDA_HOME is unset, infer from nvcc on PATH.
 if [ -z "${CUDA_HOME}" ] && command -v nvcc >/dev/null 2>&1; then
   export CUDA_HOME="$(dirname "$(dirname "$(command -v nvcc)")")"
@@ -38,9 +55,12 @@ fi
 
 # 展示真实位置
 actual_model_path=$(realpath "${model_name_or_path}")
+actual_dataset_path=$(realpath "${dataset_path}")
 echo "========================================"
 echo "Model source path: ${model_name_or_path}"
-echo "Actual resolved path: ${actual_model_path}"
+echo "Actual resolved model path: ${actual_model_path}"
+echo "Dataset source path: ${dataset_path}"
+echo "Actual resolved dataset path: ${actual_dataset_path}"
 echo "========================================"
 
 
@@ -82,7 +102,7 @@ cmd="deepspeed ${deepspeed_args} \
 # learning rate： 2e-5 -> 1e-5
 # gradient_accumulation_steps 1 -> 8
 
-#     --max_steps 200 \
+# 可加：    --max_steps 1000 \
 # 由于alpaca训练集较小，可以进一步调整：--num_train_epochs 3 \
 
 

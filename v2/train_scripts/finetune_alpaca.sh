@@ -1,9 +1,13 @@
 #!/bin/bash
-
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+# 尝试：缓解动态分配尺寸导致的碎片问题
+export PYTORCH_ALLOC_CONF=expandable_segments:True
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 model_name_or_path=Efficient-Large-Model/Fast_dLLM_v2_7B
 dataset_path=data/alpaca/train_conversation
-output_dir=output_models/finetune_fast_dLLM_7B-test
-deepspeed_args="--master_port=11000"
+timestamp=$(date +"%Y%m%d_%H%M%S")
+output_dir="output_models/finetune_fast_dLLM_7B_${timestamp}" # 引入时间戳命名
+deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11000" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
 # Use system/conda CUDA; if CUDA_HOME is unset, infer from nvcc on PATH.
 if [ -z "${CUDA_HOME}" ] && command -v nvcc >/dev/null 2>&1; then
@@ -42,25 +46,39 @@ cmd="deepspeed ${deepspeed_args} \
     ${resume_arg} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
-    --learning_rate 2e-5 \
+    --learning_rate 1e-5 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
+    --max_steps 200 \
     --disable_group_texts 0 \
     --block_size 512 \
     --per_device_train_batch_size 1 \
-    --gradient_accumulation_steps 1 \
-    --deepspeed configs/ds_config_zero2_no_offload.json \
+    --gradient_accumulation_steps 8 \
+    --deepspeed configs/ds_config_zero3_small_bucket.json \
     --bf16 \
     --run_name finetune \
     --validation_split_percentage 0 \
     --logging_steps 1 \
     --do_train \
     --ddp_timeout 72000 \
+    --save_strategy no \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --save_total_limit 10 \
-    --gradient_checkpointing 1 "
+    --use_flash_attention 1\
+    --gradient_checkpointing 1 "\
+
+# 改用 ZeRO-3 no offload
+# 新增：max_steps, save_strategy，先跑起来！[verify]
+# 补充：缓解动态分配尺寸导致的碎片问题
+# + flash_attn?
+# learning rate： 2e-5 -> 1e-5
+# gradient_accumulation_steps 1 -> 8
+
+#     --max_steps 200 \
+# 由于alpaca训练集较小，可以进一步调整：--num_train_epochs 3 \
+
 
 echo $cmd
 eval $cmd

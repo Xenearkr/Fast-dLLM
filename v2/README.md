@@ -1,5 +1,145 @@
 # Fast-dLLM v2: Efficient Block-Diffusion Large Language Model
 
+## Progress 2026.05.24 使用须知
+对本仓库添加的架构说明如下：
+v2/base_models 
+- 使用的AR模型基座，上传的版本缺少.safetensors模型权重文件，直接到HF上下载对应权重即可。
+- 目前包含：Fast-dLLM-v2, Qwen2.5-7B-Instruct, Qwen3-8B
+- 其中Fast-dLLM-v2和Qwen3-8B保留了原始形态（即跟直接从Hugging Face上下载的没区别），Qwen2.5-7B-Instruct的配置已经包装成了Fast类模型
+
+v2/train_scripts
+- 添加finetune_a2d_v0.sh，主要训练脚本
+- 已有finetune脚本产生的文件需转换呈safetensors，添加convert_model.sh和convert_inplace_to_safetensors.py
+
+v2/utils
+- 一些辅助函数，主要用于将原始Llama-Nemotron转换成可以套用finetune脚本的格式
+- 当然很奇怪的一点是：这个工作理论上开发者做过一次，为啥不直接提供复现方法？
+
+v2/data
+- Llama-Nemotron数据集放在这里，太大了我就不上传了，我的组织结构如下：
+.
+├── alpaca
+│   ├── test
+│   │   └── test_252.json
+│   ├── test_conversation
+│   │   └── test_252.json
+│   ├── train
+│   │   └── train_52002.json
+│   └── train_conversation
+│       └── train_52002.json
+├── download.sh
+└── Llama-Nemotron-code-v1.1
+    ├── README.md
+    ├── SFT
+    │   └── code
+    │       └── code_v1.1.jsonl
+    ├── train_conversation # 这里放的是使用utils中代码转换好的文件
+    │   ├── train-00001.json
+    │   ├── train-00002.json
+    │   ├── train-00003.json
+    │   ├── train-00004.json
+    │   ├── train-00005.json
+    │   ├── train-00006.json
+    │   ├── train-00007.json
+    │   ├── train-00008.json
+    │   ├── train-00009.json
+    │   ├── train-00010.json
+    │   ├── train-00011.json
+    │   ├── train-00012.json
+    │   ├── train-00013.json
+    │   ├── train-00014.json
+    │   ├── train-00015.json
+    │   ├── train-00016.json
+    │   ├── train-00017.json
+    │   ├── train-00018.json
+    │   ├── train-00019.json
+    │   ├── train-00020.json
+    │   ├── train-00021.json
+    │   ├── train-00022.json
+    │   ├── train-00023.json
+    │   ├── train-00024.json
+    │   ├── train-00025.json
+    │   ├── train-00026.json
+    │   ├── train-00027.json
+    │   ├── train-00028.json
+    │   ├── train-00029.json
+    │   ├── train-00030.json
+    │   ├── train-00031.json
+    │   ├── train-00032.json
+    │   ├── train-00033.json
+    │   ├── train-00034.json
+    │   ├── train-00035.json
+    │   ├── train-00036.json
+    │   ├── train-00037.json
+    │   ├── train-00038.json
+    │   ├── train-00039.json
+    │   ├── train-00040.json
+    │   ├── train-00041.json
+    │   ├── train-00042.json
+    │   ├── train-00043.json
+    │   ├── train-00044.json
+    │   ├── train-00045.json
+    │   ├── train-00046.json
+    │   ├── train-00047.json
+    │   ├── train-00048.json
+    │   └── train-00049.json
+    └── use # 我第一次只用了转换好的1/50，所以单独拎出来了第一个分片
+        └── train-00000.json
+
+其他说明：
+1. 训练所得模型自动放在v2/output_models/下
+2. 训练调用的部分代码涉及Fast-dLLM/third_party/lmflow等文件夹，不在Fast-dLLM/v2目录下
+
+
+## Progress 2026.05.23 进度说明
+
+### Target 1 直接运行
+- 目前都是全量微调，未适配LoRA
+- GPU配置不同，导致：1. 容易报错OOM，2. loss波动大；建议：再试试调整参数？
+- 除了按照下面的要求安装requirements之外，还要安装flash-attn 2.8.3
+
+### Target 2 换 Fast 为 Qwen 2.5
+- 已经把包装套好了，套的对不对还不好说...但就loss趋势来看似乎可以...
+
+### Target 3 换 Alpaca 为 Llama-Nemotron
+- 放在v2/data/底下，只选了一部分，并做了格式调整
+
+### Target 4 评测
+- 评测MMLU对比如下：
+# qwen 2.5 + llama-nemotron 训了1000 steps
+|      Groups      |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
+|------------------|------:|------|------|------|---|-----:|---|-----:|
+|mmlu              |      2|none  |      |acc   |↑  |0.6716|±  |0.0037|
+| - humanities     |      2|none  |      |acc   |↑  |0.5911|±  |0.0067|
+| - other          |      2|none  |      |acc   |↑  |0.7184|±  |0.0078|
+| - social sciences|      2|none  |      |acc   |↑  |0.7836|±  |0.0072|
+| - stem           |      2|none  |      |acc   |↑  |0.6362|±  |0.0083|
+
+# 直接用Fast-dllm-v2-7B
+|      Groups      |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
+|------------------|------:|------|------|------|---|-----:|---|-----:|
+|mmlu              |      2|none  |      |acc   |↑  |0.6797|±  |0.0037|
+| - humanities     |      2|none  |      |acc   |↑  |0.5951|±  |0.0066|
+| - other          |      2|none  |      |acc   |↑  |0.7377|±  |0.0076|
+| - social sciences|      2|none  |      |acc   |↑  |0.7930|±  |0.0072|
+| - stem           |      2|none  |      |acc   |↑  |0.6384|±  |0.0083|
+
+- 评测coding任务：
+  - 需要额外下载evalplus支持？直接在eval脚本里把task-name改成mbpp，会跑出0.0？见仓库issues
+  - 添加了evalplus支持之后，似乎结果不太理想？【以下都是直接用Fast-dllm-v2-7B测的】
+    mbpp (base tests)
+    pass@1: 0.325
+    mbpp+ (base + extra tests)
+    pass@1: 0.265
+  - humaneval需要后训练吗？（可以肯定的是mbpp不需要）
+
+
+
+
+==========================================================================================
+
+## 下面是原来的内容
+
 [![Project](https://img.shields.io/static/v1?label=Project&message=Github&color=blue&logo=github-pages)](https://nvlabs.github.io/Fast-dLLM/v2)
 [![arXiv](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/abs/2509.26328)
 [![Model](https://img.shields.io/badge/🤗-Model-yellow)](https://huggingface.co/Efficient-Large-Model/Fast_dLLM_v2_7B)
