@@ -3,6 +3,7 @@
 ## Progress 2026.05.24 使用须知
 对本仓库添加的架构说明如下：
 v2/base_models 
+- 后期补充：这个文件夹太大了，不上传了...
 - 使用的AR模型基座，上传的版本缺少.safetensors模型权重文件，直接到HF上下载对应权重即可。
 - 目前包含：Fast-dLLM-v2, Qwen2.5-7B-Instruct, Qwen3-8B
 - 其中Fast-dLLM-v2和Qwen3-8B保留了原始形态（即跟直接从Hugging Face上下载的没区别），Qwen2.5-7B-Instruct的配置已经包装成了Fast类模型
