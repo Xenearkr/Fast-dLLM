@@ -35,56 +35,13 @@ v2/data
     │       └── code_v1.1.jsonl
     ├── train_conversation # 这里放的是使用utils中代码转换好的文件
     │   ├── train-00001.json
-    │   ├── train-00002.json
-    │   ├── train-00003.json
-    │   ├── train-00004.json
-    │   ├── train-00005.json
-    │   ├── train-00006.json
-    │   ├── train-00007.json
-    │   ├── train-00008.json
-    │   ├── train-00009.json
-    │   ├── train-00010.json
-    │   ├── train-00011.json
-    │   ├── train-00012.json
-    │   ├── train-00013.json
-    │   ├── train-00014.json
-    │   ├── train-00015.json
-    │   ├── train-00016.json
-    │   ├── train-00017.json
-    │   ├── train-00018.json
-    │   ├── train-00019.json
-    │   ├── train-00020.json
-    │   ├── train-00021.json
-    │   ├── train-00022.json
-    │   ├── train-00023.json
-    │   ├── train-00024.json
-    │   ├── train-00025.json
-    │   ├── train-00026.json
-    │   ├── train-00027.json
-    │   ├── train-00028.json
-    │   ├── train-00029.json
-    │   ├── train-00030.json
-    │   ├── train-00031.json
-    │   ├── train-00032.json
-    │   ├── train-00033.json
-    │   ├── train-00034.json
-    │   ├── train-00035.json
-    │   ├── train-00036.json
-    │   ├── train-00037.json
-    │   ├── train-00038.json
-    │   ├── train-00039.json
-    │   ├── train-00040.json
-    │   ├── train-00041.json
-    │   ├── train-00042.json
-    │   ├── train-00043.json
-    │   ├── train-00044.json
-    │   ├── train-00045.json
-    │   ├── train-00046.json
-    │   ├── train-00047.json
-    │   ├── train-00048.json
+    │   ├── ......
     │   └── train-00049.json
     └── use # 我第一次只用了转换好的1/50，所以单独拎出来了第一个分片
         └── train-00000.json
+
+v2/eval_codetask.sh 评测代码任务，需要额外evalplus支持，效果不理想
+v2/eval_tmp.sh 评测mmlu，本质就是eval_script.sh的一部分
 
 其他说明：
 1. 训练所得模型自动放在v2/output_models/下
