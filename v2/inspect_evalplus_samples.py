@@ -2,12 +2,12 @@
 使用须知：
 用于检查 samples JSONL 是否符合 EvalPlus 期望格式
 
-用法：
+用法：注意修改dataset和samples文件名称！
 [MBPP]
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
 python inspect_evalplus_samples.py \
   --dataset mbpp \
-  --samples evalplus_results/Fast/mbpp_fast.jsonl \
+  --samples evalplus_results/Qwen2.5/mbpp_fast.jsonl \
   --show_n 5 \
   --show_bad_n 10
 

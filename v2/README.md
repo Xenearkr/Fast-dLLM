@@ -1,6 +1,25 @@
 # Fast-dLLM v2: Efficient Block-Diffusion Large Language Model
 
-## Progress 2026.05.24 使用须知
+## Progress 2026.05.24-2 更新说明
+
+### 改进内容
+
+1. 添加了可以上传的base_models权重：Qwen2.5是改装好的，Qwen3是原先的。注意.gitignore规则，必须忽略跟踪大文件。【这个文件夹的配置是否正确有待进一步检验】
+
+2. 修复了mbpp评测逻辑，复现原文结果，除了一点瑕疵之外基本修正成功；humaneval评测逻辑有待改进。支持一键评测。
+
+3. 修复了本README文件，读起来更美观。
+
+### TBD
+
+1. 修复Humaneval评测逻辑，通过Fast-dLLM/v2/inspect_evalplus_samples.py文件的检查
+
+2. 改良Qwen3.8仓库，引入Qwen3自带modeling等文件作为基线仓库
+
+
+---
+
+## Progress 2026.05.24-1 使用须知
 
 对本仓库添加的架构说明如下：
 
@@ -96,6 +115,7 @@
 1. 训练所得模型自动放在v2/output_models/下
 2. 训练调用的部分代码涉及Fast-dLLM/third_party/lmflow等文件夹，不在Fast-dLLM/v2目录下
 
+---
 
 ## Progress 2026.05.23 进度说明
 
