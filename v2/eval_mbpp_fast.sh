@@ -1,14 +1,41 @@
 #!/usr/bin/env bash
+
+# 使用方法：
+# bash eval_mbpp_fast.sh Fast
+# bash eval_mbpp_fast.sh Qwen2.5
+
 set -euo pipefail
 
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
-METHOD="Qwen2.5"
+# 按需修改：模型名称
+METHOD="${1:-Fast}"
 
-mkdir -p evalplus_results/${METHOD}
+case "$METHOD" in
+  Fast)
+    MODEL_PATH="Efficient-Large-Model/Fast_dLLM_v2_7B"
+    OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
+    ;;
 
-MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723" # "Efficient-Large-Model/Fast_dLLM_v2_7B"
-OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
+  Qwen2.5)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723"
+    OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
+    ;;
+
+  *)
+    echo "Unknown METHOD: ${METHOD}"
+    echo "Supported METHOD values: Fast, Qwen2.5"
+    exit 1
+    ;;
+esac
+
+mkdir -p "evalplus_results/${METHOD}"
+
+echo "METHOD=${METHOD}"
+echo "MODEL_PATH=${MODEL_PATH}"
+echo "OUTPUT=${OUTPUT}"
+
+
 
 if [ -f "$OUTPUT" ]; then
   echo "已有同名文件，跳过生成: $OUTPUT"

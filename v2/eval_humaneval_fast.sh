@@ -1,21 +1,47 @@
 #!/usr/bin/env bash
+
+# 使用方法：
+# bash eval_humaneval_fast.sh Fast
+# bash eval_humaneval_fast.sh Qwen2.5
+
 set -euo pipefail
 
-# 这个文件还不是很完善，正在改进中...
-# 注意文件夹的创建和模型适配，现在的逻辑是有之前的文件，直接跳过...
-
-# export CUDA_VISIBLE_DEVICES="1,2,3"
+export CUDA_VISIBLE_DEVICES=2
 cd /home/u-shengbf/Codes/Fast-dLLM/v2/
 mkdir -p evalplus_results
 
-mkdir -p evalplus_results/Qwen2.5
+# 按需修改：模型名称
+METHOD="${1:-Fast}"
 
 DATASET="humaneval"
-OUTPUT="evalplus_results/Qwen2.5/${DATASET}_fast.jsonl"
+
+case "$METHOD" in
+  Fast)
+    MODEL_PATH="Efficient-Large-Model/Fast_dLLM_v2_7B"
+    OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
+    ;;
+
+  Qwen2.5)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723"
+    OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
+    ;;
+
+  *)
+    echo "Unknown METHOD: ${METHOD}"
+    echo "Supported METHOD values: Fast, Qwen2.5"
+    exit 1
+    ;;
+esac
+
+mkdir -p "evalplus_results/${METHOD}"
+
+echo "METHOD=${METHOD}"
+echo "MODEL_PATH=${MODEL_PATH}"
+echo "OUTPUT=${OUTPUT}"
+
+
 SANITIZED_OUTPUT="${OUTPUT%.jsonl}-sanitized.jsonl"
 
-MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723"
-# "Efficient-Large-Model/Fast_dLLM_v2_7B"
 
 
 if [ -f "$OUTPUT" ]; then
@@ -23,7 +49,7 @@ if [ -f "$OUTPUT" ]; then
 else
   echo "未发现同名文件，开始生成: $OUTPUT"
 
-  python generate_evalplus_samples.py \
+  python generate_humaneval_fast_samples.py \
     --model_path "$MODEL_PATH" \
     --dataset "$DATASET" \
     --output "$OUTPUT" \
