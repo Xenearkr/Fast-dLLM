@@ -10,6 +10,8 @@ if [ -z "${CUDA_HOME}" ] && command -v nvcc >/dev/null 2>&1; then
   export CUDA_HOME="$(dirname "$(dirname "$(command -v nvcc)")")"
 fi
 
+# 关键：允许 Transformers 从 Hugging Face repo 下载并执行自定义模型代码
+# 见 HF repo 的config.json， "auto_map"
 trust_remote_code=1
 
 latest_checkpoint=""

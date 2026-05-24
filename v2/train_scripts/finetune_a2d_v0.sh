@@ -56,7 +56,6 @@ cmd="deepspeed ${deepspeed_args} \
     --learning_rate 1e-5 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
-    --max_steps 20 \
     --disable_group_texts 0 \
     --block_size 512 \
     --per_device_train_batch_size 1 \

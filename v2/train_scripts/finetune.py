@@ -57,7 +57,7 @@ def main():
     data_args.mask_id = model.tokenizer.encode("|<MASK>|")[0]
 
     # Finetuning
-    tuned_model = finetuner.tune(model=model, dataset=dataset)
+    tuned_model = finetuner.tune(model=model, dataset=dataset) # 调用 tune 方法，见finetuner.py
 
 
 if __name__ == '__main__':
