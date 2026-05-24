@@ -96,7 +96,7 @@ def load_tasks(dataset: str):
     raise ValueError(f"Unsupported dataset: {dataset}")
 
 
-def infer_entry_point(dataset: str, problem: dict) -> str | None:
+def infer_entry_point(dataset: str, problem: dict):
     for key in ("entry_point", "canonical_entry_point"):
         if problem.get(key):
             return problem[key]

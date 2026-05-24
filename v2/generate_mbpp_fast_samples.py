@@ -44,6 +44,58 @@ COMMON_NON_TARGET_CALLS = {
 }
 
 
+def normalize_name(name: str) -> str:
+    return name.lower()
+
+
+class RenameFunction(ast.NodeTransformer):
+    def __init__(self, old_name: str, new_name: str):
+        self.old_name = old_name
+        self.new_name = new_name
+
+    def visit_FunctionDef(self, node):
+        if node.name == self.old_name:
+            node.name = self.new_name
+        return self.generic_visit(node)
+
+
+def ensure_entry_point_name(code: str, entry_point: str) -> str:
+    """
+    如果模型生成的函数名与 EvalPlus 期望 entry point 只是大小写不同，
+    自动重命名为期望函数名。
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+
+    func_names = [
+        node.name for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+    ]
+
+    if entry_point in func_names:
+        return code
+
+    # 优先找大小写无关匹配
+    candidates = [
+        name for name in func_names
+        if normalize_name(name) == normalize_name(entry_point)
+    ]
+
+    # 如果没有大小写无关匹配，但只有一个函数，也可以考虑改名
+    # 这里建议保守一点，只处理大小写无关匹配。
+    if not candidates:
+        return code
+
+    old_name = candidates[0]
+    tree = RenameFunction(old_name, entry_point).visit(tree)
+    ast.fix_missing_locations(tree)
+
+    return ast.unparse(tree) + "\n"
+
+
+
 def import_generation_functions():
     try:
         import generation_functions
@@ -537,6 +589,9 @@ def main():
 
             for task_id, problem, completion in zip(task_ids, problems_batch, completions):
                 solution, ok = clean_generated_mbpp_code(completion, problem)
+
+                entry_point = get_entry_point(problem)
+                solution = ensure_entry_point_name(solution, entry_point)
 
                 if not ok:
                     failed_extract.append(task_id)

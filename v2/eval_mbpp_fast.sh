@@ -3,10 +3,12 @@ set -euo pipefail
 
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
-mkdir -p evalplus_results/Fast
+METHOD="Qwen2.5"
 
-MODEL_PATH="Efficient-Large-Model/Fast_dLLM_v2_7B"
-OUTPUT="evalplus_results/Fast/mbpp_fast.jsonl"
+mkdir -p evalplus_results/${METHOD}
+
+MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723" # "Efficient-Large-Model/Fast_dLLM_v2_7B"
+OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
 
 if [ -f "$OUTPUT" ]; then
   echo "已有同名文件，跳过生成: $OUTPUT"
