@@ -1,14 +1,16 @@
 #!/bin/bash
 
 
-# 运行方式（必须在项目根目录下）：bash train_scripts/finetune_a2d_v0.sh
-
+# LoRA版本
 # 训练前确认如下事项：
 # 1. 模型加载路径、数据集加载路径
 # 2. output_dir的命名是否符合你的想法
 # 3. 调整参数，比如用max-steps控制本轮迭代次数等
 
+# 目前不支持断点续训（因为引入了timestamp，永远找不到原先output_dir）
 
+
+cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 # 尝试：缓解动态分配尺寸导致的碎片问题
@@ -73,27 +75,34 @@ cmd="deepspeed ${deepspeed_args} \
     ${resume_arg} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
-    --learning_rate 1e-5 \
+    --max_steps 1000 \
+    --learning_rate 2e-5 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
     --disable_group_texts 0 \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero3_small_bucket.json \
+    --deepspeed configs/ds_config_zero3_no_offload.json \
     --bf16 \
-    --run_name finetune \
+    --run_name finetune_lora \
     --validation_split_percentage 0 \
     --logging_steps 1 \
     --do_train \
     --ddp_timeout 72000 \
-    --save_strategy no \
+    --save_strategy steps \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --save_total_limit 10 \
-    --use_flash_attention 1\
-    --gradient_checkpointing 1 "\
+    --use_flash_attention 1 \
+    --gradient_checkpointing 1 \
+    --use_lora true \
+    --lora_r 8 \
+    --lora_alpha 32 \
+    --lora_dropout 0.1 \
+    --lora_target_modules q_proj,k_proj,v_proj,o_proj \
+    --save_aggregated_lora true"
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]
