@@ -30,10 +30,12 @@ fast_dvlm/data/ALLaVA-4V/
 v2/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp39-cp39-linux_x86_64.whl
 v2/data/Llama-Nemotron-code-v1.1
 
-v2/base_models/Model-Qwen-3-8B
-v2/base_models/Model-Qwen-2.5-7B-Instruct
-v2/base_models/Model-Qwen-2.5-7B
+
 v2/base_models/*/merges.txt
 v2/base_models/*/vocab.json
 v2/base_models/*/tokenizer.json
 v2/evalplus_results/
+v2/base_models/*/.cache/
+v2/base_models/*/.gitattributes
+
+*.safetensors
