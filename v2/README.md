@@ -3,9 +3,37 @@
 ## Progress 2026.05.24 使用须知
 对本仓库添加的架构说明如下：
 v2/base_models 
-- 使用的AR模型基座，上传的版本缺少.safetensors模型权重文件，直接到HF上下载对应权重即可。
+- 补充：这个文件夹太大了上传不了
+- 使用的AR模型基座
 - 目前包含：Fast-dLLM-v2, Qwen2.5-7B-Instruct, Qwen3-8B
 - 其中Fast-dLLM-v2和Qwen3-8B保留了原始形态（即跟直接从Hugging Face上下载的没区别），Qwen2.5-7B-Instruct的配置已经包装成了Fast类模型
+- 具体怎么包装的呢？见下文
+    仓库对比：
+    Fast
+    略
+
+    Qwen
+    权重区
+    ├── model-00001-of-00004.safetensors ✅️keep
+    ├── model-00002-of-00004.safetensors ✅️keep
+    ├── model-00003-of-00004.safetensors ✅️keep
+    ├── model-00004-of-00004.safetensors ✅️keep
+    添加区：这些文件是只有Fast里面有的
+    ├── modeling.py ✅️move
+    ├── configuration.py ✅️move
+    ├── added_tokens.json ✅️move
+    ├── chat_template.jinja ✅️move
+    ├── latest ❌️delete
+    ├── special_tokens_map.json ✅️move
+    修改区：这些文件是两个仓库中都有的，不清楚的修改请见v2/base_models_ref
+    ├── config.json ✅️ 大改
+    ├── generation_config.json ✅️ change 4.53.1/4.37.0
+    ├── merges.txt ✅️keep
+    ├── model.safetensors.index.json ✅️modify 1 line
+    ├── tokenizer_config.json✅️ copy-paste
+    ├── tokenizer.json✅️copy-paste
+    └── vocab.json ✅️keep
+
 
 v2/train_scripts
 - 添加finetune_a2d_v0.sh，主要训练脚本
