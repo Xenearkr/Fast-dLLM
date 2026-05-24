@@ -10,5 +10,5 @@
   "temperature": 0.7,
   "top_p": 0.8,
   "top_k": 20,
-  "transformers_version": "4.37.0"
+  "transformers_version": "4.53.1"
 }

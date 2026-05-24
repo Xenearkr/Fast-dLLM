@@ -2,8 +2,11 @@
 
 ## Progress 2026.05.24 使用须知
 对本仓库添加的架构说明如下：
-v2/base_models 
-- 这个文件夹太大了，不上传了...
+v2/base_models/ref
+- 包含了对Qwen2.5-7B-Instruct进行Fast包装的重要代码组件，以防误删，上传
+
+v2/base_models
+- 提醒：关于这个文件夹内部哪些文件要跟踪，请关注 Fast-dLLM/.gitignore 最后部分。总体而言，一方面，大文件不宜加入跟踪，即使在历史状态中出现，也可能导致无法上传的问题；另一方面，大文件都是不怎么改的，可以直接从HF上下载，重点都在其中的代码文件部分。
 - 使用的AR模型基座。
 - 目前包含：Fast-dLLM-v2, Qwen2.5-7B-Instruct, Qwen3-8B
 - 其中Fast-dLLM-v2和Qwen3-8B保留了原始形态（即跟直接从Hugging Face上下载的没区别），Qwen2.5-7B-Instruct的配置已经包装成了Fast类模型
