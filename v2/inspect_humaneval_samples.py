@@ -21,12 +21,12 @@ inspect_humaneval_samples.py
 用法：
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
 python inspect_humaneval_samples.py \
-  --samples evalplus_results/Fast/humaneval_fast-sanitized.jsonl \
+  --samples evalplus_results/Fast/humaneval_fast-patched.jsonl \
   --show_n 0 \
   --show_bad_n 10
 
 python inspect_humaneval_samples.py \
-  --samples evalplus_results/Qwen2.5/humaneval_fast-sanitized.jsonl \
+  --samples evalplus_results/Qwen2.5/humaneval_fast-patched.jsonl \
   --show_n 0 \
   --show_bad_n 10
 
