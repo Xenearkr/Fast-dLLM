@@ -41,3 +41,5 @@ v2/base_models/*/.gitattributes
 *.safetensors
 
 v2/adapter_model/
+
+v2/base_models/*/audits/step7_passed/tokenizer_step7_passed.json
