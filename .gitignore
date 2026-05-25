@@ -39,3 +39,5 @@ v2/base_models/*/.cache/
 v2/base_models/*/.gitattributes
 
 *.safetensors
+
+v2/adapter_model/
