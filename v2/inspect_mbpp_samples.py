@@ -7,7 +7,7 @@
 [MBPP]
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
-python inspect_evalplus_samples.py \
+python inspect_mbpp_samples.py \
   --dataset mbpp \
   --samples evalplus_results/Fast/mbpp_fast.jsonl \
   --show_n 5 \
@@ -22,19 +22,6 @@ python inspect_evalplus_samples.py \
   --run_base_tests
 
 
-[HumanEval]
-python inspect_evalplus_samples.py \
-  --dataset humaneval \
-  --samples evalplus_results/Fast/humaneval_fast.jsonl \
-  --show_n 5 \
-  --show_bad_n 10
-
-python inspect_evalplus_samples.py \
-  --dataset humaneval \
-  --samples evalplus_results/Fast/humaneval_fast.jsonl \
-  --show_n 5 \
-  --show_bad_n 10 \
-  --run_base_tests
 
 
 理想输出：
@@ -49,15 +36,6 @@ has_assert_tests: 0 最好，但允许少量。
 
 MBPP 的 solution 应该是完整 Python 代码，不应该包含 prompt、Markdown、解释或测试。
 
-[HumanEval]
-not_compilable: 0
-missing_entry_point: 0
-has_markdown_fence: 0
-has_explanation_text: 0
-
-humaneval_prompt_not_found 如果很多，需要看保存的是 completion 还是 solution。
-如果保存 completion，EvalPlus 可以接受；
-但如果保存字段叫 solution，一般应包含完整 prompt + completion。
 """
 
 import argparse
