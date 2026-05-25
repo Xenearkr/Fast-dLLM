@@ -80,7 +80,7 @@ cmd="deepspeed ${deepspeed_args} \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero3_small_bucket.json \
+    --deepspeed configs/ds_config_zero3_full.json \
     --bf16 \
     --run_name finetune \
     --validation_split_percentage 0 \
@@ -94,7 +94,7 @@ cmd="deepspeed ${deepspeed_args} \
     --save_total_limit 10 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --max_steps 20 "
+    --max_steps 1000 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]

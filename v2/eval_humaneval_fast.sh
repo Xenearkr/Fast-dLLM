@@ -29,6 +29,10 @@ case "$METHOD" in
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
     ;;
 
+  Qwen3)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_222644" 
+    ;;
+
   *)
     echo "Unknown METHOD: ${METHOD}"
     echo "Supported METHOD values: Fast, Qwen2.5"

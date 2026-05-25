@@ -83,7 +83,7 @@ cmd="deepspeed ${deepspeed_args} \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero3_small_bucket.json \
+    --deepspeed configs/ds_config_zero3_lora.json \
     --bf16 \
     --run_name finetune_lora \
     --validation_split_percentage 0 \
