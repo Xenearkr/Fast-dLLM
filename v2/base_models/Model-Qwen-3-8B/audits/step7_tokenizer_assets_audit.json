@@ -1,0 +1,106 @@
+{
+  "model_dir": "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B",
+  "changed": true,
+  "messages": [
+    "Set bos_token_id to 151643."
+  ],
+  "config": {
+    "model_type": "Fast_dLLM_Qwen3",
+    "vocab_size": 151936,
+    "mask_token": "|<MASK>|",
+    "mask_token_id": 151669,
+    "pad_token_id": 151643,
+    "bos_token_id": 151643,
+    "eos_token_id": 151645
+  },
+  "generation_config": {
+    "bos_token_id": 151643,
+    "eos_token_id": [
+      151645,
+      151643
+    ],
+    "pad_token_id": 151643,
+    "temperature": 0.6,
+    "top_k": 20,
+    "top_p": 0.95
+  },
+  "tokenizer": {
+    "len": 151670,
+    "pad_token": "<|endoftext|>",
+    "pad_token_id": 151643,
+    "bos_token": "<|endoftext|>",
+    "bos_token_id": 151643,
+    "eos_token": "<|im_end|>",
+    "eos_token_id": 151645,
+    "additional_special_tokens_tail": [
+      "<|im_start|>",
+      "<|im_end|>",
+      "<|object_ref_start|>",
+      "<|object_ref_end|>",
+      "<|box_start|>",
+      "<|box_end|>",
+      "<|quad_start|>",
+      "<|quad_end|>",
+      "<|vision_start|>",
+      "<|vision_end|>",
+      "<|vision_pad|>",
+      "<|image_pad|>",
+      "<|video_pad|>",
+      "|<MASK>|"
+    ],
+    "important_token_ids": {
+      "<|endoftext|>": 151643,
+      "<|im_start|>": 151644,
+      "<|im_end|>": 151645,
+      "<tool_call>": 151657,
+      "</tool_call>": 151658,
+      "<tool_response>": 151665,
+      "</tool_response>": 151666,
+      "<think>": 151667,
+      "</think>": 151668,
+      "|<MASK>|": 151669
+    }
+  },
+  "file_hash_changes": {
+    "added_tokens.json": {
+      "before": "9e24d235c7a5c969a2b0d89edb6aad9536f01cb6315ce4c044ea0d2199e73c08",
+      "after": "9e24d235c7a5c969a2b0d89edb6aad9536f01cb6315ce4c044ea0d2199e73c08",
+      "changed": false
+    },
+    "chat_template.jinja": {
+      "before": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+      "after": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+      "changed": false
+    },
+    "config.json": {
+      "before": "d5b3ec46950163001d8372dea6443e725c084f65cbbd862cba150364685df009",
+      "after": "d5b3ec46950163001d8372dea6443e725c084f65cbbd862cba150364685df009",
+      "changed": false
+    },
+    "generation_config.json": {
+      "before": "81e8e13e77962857509cc06a9960bb68f8b7893096a60357627b2dfaa72d78fe",
+      "after": "81e8e13e77962857509cc06a9960bb68f8b7893096a60357627b2dfaa72d78fe",
+      "changed": false
+    },
+    "model.safetensors.index.json": {
+      "before": "f9fdbcb91c23971c13ec5d5f2573d2349e8f61f2f049371ec699281748fdb1bc",
+      "after": "f9fdbcb91c23971c13ec5d5f2573d2349e8f61f2f049371ec699281748fdb1bc",
+      "changed": false
+    },
+    "special_tokens_map.json": {
+      "before": "c27989bd1d338283e0f6dbb9fc4488027b87eb178962cb461e8fa1a332272510",
+      "after": "0dadd9ea7c38aeb02a57ea3cf5d4cf63b0252ad405595417a795a43b7278a995",
+      "changed": true
+    },
+    "tokenizer.json": {
+      "before": "f9c7cded9f58c495ec7a51418240b122eb8b967812caf0d0b80d845da519732d",
+      "after": "f9c7cded9f58c495ec7a51418240b122eb8b967812caf0d0b80d845da519732d",
+      "changed": false
+    },
+    "tokenizer_config.json": {
+      "before": "bf9b1ba5089edc75a34a9cd1446d36ba411b3fc708780c98c29eb83c20388869",
+      "after": "871f1a595d4f11127283be64b77c5bc6b04e1a99b33f1e0761a623ef87fffd60",
+      "changed": true
+    }
+  }
+}
