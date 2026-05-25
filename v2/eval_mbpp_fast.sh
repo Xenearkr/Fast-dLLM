@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 
 # 使用方法：
+# 默认评测 Fast
 # bash eval_mbpp_fast.sh Fast
 # bash eval_mbpp_fast.sh Qwen2.5
+# bash eval_mbpp_fast.sh Qwen2.5_LoRA
 
 set -euo pipefail
 
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
-# export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=3
 
 # 按需修改：模型名称
 METHOD="${1:-Fast}"
@@ -23,10 +25,15 @@ case "$METHOD" in
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723"
     OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
     ;;
+  
+  Qwen2.5_LoRA)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
+    OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
+    ;;
 
   *)
     echo "Unknown METHOD: ${METHOD}"
-    echo "Supported METHOD values: Fast, Qwen2.5"
+    echo "Supported METHOD values: Fast, Qwen2.5, Qwen2.5_LoRA"
     exit 1
     ;;
 esac

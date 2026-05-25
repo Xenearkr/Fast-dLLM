@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-export CUDA_VISIBLE_DEVICES=2
+# export CUDA_VISIBLE_DEVICES=1
 cd /home/u-shengbf/Codes/Fast-dLLM/v2/
 mkdir -p evalplus_results
 

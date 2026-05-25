@@ -1,5 +1,18 @@
 # Fast-dLLM v2: Efficient Block-Diffusion Large Language Model
 
+## Progress 2025.05.25 更新说明
+
+1. 在v2/base_models/Model-Qwen-3-8B/下添加了原生Qwen3版本的modeling.py和configuration.py
+
+2. 完全修复了mbpp和humaneval评测逻辑（注意：如果运行eval_humaneval_fast.sh或eval_mbpp_fast.sh报错第x行发现未知符号，只要再bash ?.sh一次就行了）（对mbpp，由于清洗逻辑相对宽松，表现略偏高，但基本符合原文数据）
+
+3. 添加inspect_humaneval_samples.py和inspect_mbpp_samples.py，用于检查coding任务的生成代码是否正确（简要说明为什么要自己写humaneval和mbpp的评测逻辑：似乎原生评测逻辑的接口和Fast类接口不对齐？）
+
+4. 修复LoRA脚本，并最大限度与full脚本对齐【当前状况：能运行、能merge，结果不理想，正在控制变量排查是由于LoRA方法本身不行还是训练方法不对】
+
+
+---
+
 ## Progress 2026.05.24-2 更新说明
 
 ### 改进内容
