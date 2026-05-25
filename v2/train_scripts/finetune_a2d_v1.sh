@@ -75,7 +75,7 @@ cmd="deepspeed ${deepspeed_args} \
     ${resume_arg} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
-    --max_steps 1000 \
+    --max_steps 20 \
     --learning_rate 2e-5 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
