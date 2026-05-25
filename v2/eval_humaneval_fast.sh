@@ -3,10 +3,11 @@
 # 使用方法：
 # bash eval_humaneval_fast.sh Fast
 # bash eval_humaneval_fast.sh Qwen2.5
+# bash eval_humaneval_fast.sh Qwen2.5_LoRA
 
 set -euo pipefail
 
-# export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=2
 cd /home/u-shengbf/Codes/Fast-dLLM/v2/
 mkdir -p evalplus_results
 
@@ -18,12 +19,14 @@ DATASET="humaneval"
 case "$METHOD" in
   Fast)
     MODEL_PATH="Efficient-Large-Model/Fast_dLLM_v2_7B"
-    OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
     ;;
 
   Qwen2.5)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723"
-    OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
+    ;;
+
+  Qwen2.5_LoRA)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
     ;;
 
   *)
@@ -32,6 +35,8 @@ case "$METHOD" in
     exit 1
     ;;
 esac
+
+OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
 
 mkdir -p "evalplus_results/${METHOD}"
 
