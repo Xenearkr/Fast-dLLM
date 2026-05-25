@@ -10,6 +10,8 @@
 
 3. 修复了本README文件，读起来更美观。
 
+4. 添加了LoRA训练脚本。问题：合并逻辑出错、训练效果未知。
+
 ### TBD
 
 1. 修复Humaneval评测逻辑，通过Fast-dLLM/v2/inspect_evalplus_samples.py文件的检查

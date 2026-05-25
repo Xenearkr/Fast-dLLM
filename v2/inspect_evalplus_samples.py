@@ -9,7 +9,7 @@ cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
 python inspect_evalplus_samples.py \
   --dataset mbpp \
-  --samples evalplus_results/Qwen2.5/mbpp_fast.jsonl \
+  --samples evalplus_results/Fast/mbpp_fast.jsonl \
   --show_n 5 \
   --show_bad_n 10
 

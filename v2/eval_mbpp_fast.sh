@@ -8,6 +8,8 @@ set -euo pipefail
 
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
+# export CUDA_VISIBLE_DEVICES=1
+
 # 按需修改：模型名称
 METHOD="${1:-Fast}"
 
