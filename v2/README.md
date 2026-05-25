@@ -2,6 +2,8 @@
 
 ## Progress 2025.05.25 更新说明
 
+### 改进内容
+
 1. 在v2/base_models/Model-Qwen-3-8B/下添加了原生Qwen3版本的modeling.py和configuration.py
 
 2. 完全修复了mbpp和humaneval评测逻辑（注意：如果运行eval_humaneval_fast.sh或eval_mbpp_fast.sh报错第x行发现未知符号，只要再bash ?.sh一次就行了）（对mbpp，由于清洗逻辑相对宽松，表现略偏高，但基本符合原文数据）
@@ -10,6 +12,51 @@
 
 4. 修复LoRA脚本，并最大限度与full脚本对齐【当前状况：能运行、能merge，结果不理想，正在控制变量排查是由于LoRA方法本身不行还是训练方法不对】
 
+### TBD
+
+1. LoRA效果：目前测试效果对比全量微调不佳。若感兴趣，可以在本地自己跑脚本 + coding task评测看效果如何。【注意：当前LoRA设定是不自动合并adapters，需要手动运行merge_lora代码合并】
+
+2. 前期准备结束，正式开始修缮Qwen3-8B子仓库
+
+### 评测结果
+
+```
+# MBPP
+# 论文结果为：0.630, 0.523
+
+# original mbpp
+mbpp (base tests)
+pass@1: 0.683
+mbpp+ (base + extra tests)
+pass@1: 0.582
+
+# qwen2.5_1000 mbpp
+mbpp (base tests)
+pass@1: 0.505
+mbpp+ (base + extra tests)
+pass@1: 0.418
+
+
+# HumanEval
+# 论文结果为：0.634, 0.585
+
+# original humaneval
+humaneval (base tests)
+pass@1: 0.579
+humaneval+ (base + extra tests)
+pass@1: 0.549
+
+# qwen2.5_1000 humaneval
+humaneval (base tests)
+pass@1: 0.439
+humaneval+ (base + extra tests)
+pass@1: 0.384
+```
+
+
+### 其他
+
+训练需要时间。新一轮mini-batch检测与LoRA结果对比最早明天中午才能拿到。
 
 ---
 
