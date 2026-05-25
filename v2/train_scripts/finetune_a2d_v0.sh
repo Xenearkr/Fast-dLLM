@@ -15,7 +15,8 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
-model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
+model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
+# "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
 dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
@@ -91,9 +92,9 @@ cmd="deepspeed ${deepspeed_args} \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --save_total_limit 10 \
-    --use_flash_attention 1 \
+    --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --max_steps 1000 "
+    --max_steps 20 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]

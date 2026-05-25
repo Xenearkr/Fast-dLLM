@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
 
-"""
-使用说明：（基于全量微调，LoRA待确定）
-finetune脚本生成的文件不能直接用作模型权重，需要进一步转换
-- 修改output_model_dir为需要转换的模型文件夹位置（通常在output_models里面，带有时间戳）
-- delete-bin参数：从.pt到safetensors中间有一步.bin转换，传入该参数为true则意味着如果成功进一步转换成safetensors则删除多余bin文件，默认设定为true
 
-使用示例：
-bash /home/u-shengbf/Codes/Fast-dLLM/v2/train_scripts/convert_model.sh
+# 使用说明：（基于全量微调，LoRA待确定）
+# finetune脚本生成的文件不能直接用作模型权重，需要进一步转换
+# - 修改output_model_dir为需要转换的模型文件夹位置（通常在output_models里面，带有时间戳）
+# - delete-bin参数：从.pt到safetensors中间有一步.bin转换，传入该参数为true则意味着如果成功进一步转换成safetensors则删除多余bin文件，默认设定为true
 
-细节：
-进一步转换具体过程为：
-1. 文件夹下包含
-"""
+# 使用示例：
+# bash /home/u-shengbf/Codes/Fast-dLLM/v2/train_scripts/convert_model.sh
+
+# 注：delete_bin不生效？再输入一次 bash ???.sh
 
 set -euo pipefail
 
-output_model_dir="${HOME}/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_215214" # 按需修改
+output_model_dir="${HOME}/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_222644" # 按需修改
 convert_script="${HOME}/Codes/Fast-dLLM/v2/train_scripts/convert_inplace_to_safetensors.py"
 
 delete_bin="true"
