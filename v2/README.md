@@ -1,5 +1,9 @@
 # Fast-dLLM v2: Efficient Block-Diffusion Large Language Model
 
+## 重要说明
+
+致管理员：Utopia分支所有前缀为public的分支都是稳定版本，可以merge进主分支。
+
 ## Progress 2025.05.25 更新说明
 
 ### 改进内容
