@@ -1,49 +1,71 @@
-# Copyright 2024 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Qwen3 model configuration"""
+# coding=utf-8
+"""Fast-dLLM Qwen3 model configuration.
 
-from huggingface_hub.dataclasses import strict
+This configuration adapts Qwen3-8B to the Fast-dLLM v2 block-diffusion
+framework while preserving Qwen3 architectural parameters.
+"""
 
-from ...configuration_utils import PreTrainedConfig
-from ...modeling_rope_utils import RopeParameters
-from ...utils import auto_docstring
+from transformers.configuration_utils import PretrainedConfig
+
+try:
+    from transformers.configuration_utils import layer_type_validation
+except Exception:  # pragma: no cover
+    def layer_type_validation(layer_types):
+        return None
+
+try:
+    from transformers.modeling_rope_utils import rope_config_validation
+except Exception:  # pragma: no cover
+    def rope_config_validation(config):
+        return None
+
+try:
+    from transformers.utils import logging
+except Exception:  # pragma: no cover
+    import logging
 
 
-@auto_docstring(checkpoint="Qwen/Qwen3-8B")
-@strict
-class Qwen3Config(PreTrainedConfig):
+logger = logging.get_logger(__name__)
+
+
+class Fast_dLLM_Qwen3Config(PretrainedConfig):
     r"""
-    ```python
-    >>> from transformers import Qwen3Model, Qwen3Config
+    Configuration class for Fast-dLLM Qwen3 models.
 
-    >>> # Initializing a Qwen3 style configuration
-    >>> configuration = Qwen3Config()
+    This config keeps the Qwen3 architecture, including QK normalization,
+    grouped-query attention settings, RoPE parameters, and Qwen3 token ids,
+    while adding Fast-dLLM v2 block-diffusion specific fields.
 
-    >>> # Initializing a model from the Qwen3-8B style configuration
-    >>> model = Qwen3Model(configuration)
-
-    >>> # Accessing the model configuration
-    >>> configuration = model.config
-    ```
+    Args:
+        vocab_size (`int`, *optional*, defaults to 151936):
+            Vocabulary size of the Qwen3 model.
+        hidden_size (`int`, *optional*, defaults to 4096):
+            Hidden size of the transformer.
+        intermediate_size (`int`, *optional*, defaults to 12288):
+            Intermediate size of the MLP.
+        num_hidden_layers (`int`, *optional*, defaults to 36):
+            Number of hidden layers.
+        num_attention_heads (`int`, *optional*, defaults to 32):
+            Number of attention heads.
+        num_key_value_heads (`int`, *optional*, defaults to 8):
+            Number of key/value heads for grouped-query attention.
+        head_dim (`int`, *optional*, defaults to 128):
+            Dimension of each attention head. Qwen3 requires this field.
+        bd_size (`int`, *optional*, defaults to 32):
+            Fast-dLLM block diffusion block size.
+        mask_token_id (`int`, *optional*, defaults to 151669):
+            Token id of the added Fast-dLLM mask token `|<MASK>|`.
+        complementary_mask (`bool`, *optional*, defaults to `True`):
+            Whether to use complementary masking during training.
+        conplemenrary_mask (`bool`, *optional*):
+            Backward-compatible alias for the typo used by some Fast-dLLM
+            configs. If provided, it overrides `complementary_mask`.
     """
 
-    model_type = "qwen3"
+    model_type = "Fast_dLLM_Qwen3"
     keys_to_ignore_at_inference = ["past_key_values"]
 
-    # TP plan (for inference/generation).
-    # All activations are plain tensors — compatible with KV cache and autoregressive
-    # decode (seq_len=1). Each rank holds a full copy of activations between layers.
+    # Tensor parallel plan, aligned with Qwen3.
     base_model_tp_plan = {
         "layers.*.self_attn.q_proj": "colwise",
         "layers.*.self_attn.k_proj": "colwise",
@@ -54,12 +76,7 @@ class Qwen3Config(PreTrainedConfig):
         "layers.*.mlp.down_proj": "rowwise_allreduce",
     }
 
-    # TP + Sequence Parallelism plan (for training).
-    # Activations between layers are sharded on the sequence dimension (Shard(1)),
-    # reducing per-rank activation memory by tp_size. In exchange, extra collectives
-    # (all-gather before attention/MLP, reduce-scatter after) are needed.
-    # Not compatible with autoregressive decode (because seq_len=1 can't be split across ranks)
-    # or KV cache (which stores plain tensors).
+    # Sequence parallel training plan, aligned with Qwen3.
     base_model_sp_plan = {
         "embed_tokens": "vocab_reduce_scatter",
         "layers.*.input_layernorm": "activation",
@@ -77,58 +94,129 @@ class Qwen3Config(PreTrainedConfig):
         "layers.*.mlp.down_proj": "rowwise_reduce_scatter",
         "norm": "activation",
     }
+
     base_model_pp_plan = {
         "embed_tokens": (["input_ids"], ["inputs_embeds"]),
         "layers": (["hidden_states", "attention_mask"], ["hidden_states"]),
         "norm": (["hidden_states"], ["hidden_states"]),
     }
 
-    # FSDP2 plan. Values are sharding strategies; policies (cpu_offload, mixed_precision)
-    # live on DistributedConfig.fsdp_plan. All entries marked `keep_full_weight` are bundled
-    # into a single fully_shard([...]) call at apply time so they share one all-gather.
     base_model_fsdp_plan = {
         "embed_tokens": "free_full_weight",
         "layers.*": "free_full_weight",
         "norm": "keep_full_weight",
     }
 
-    vocab_size: int = 151936
-    hidden_size: int = 4096
-    intermediate_size: int = 22016
-    num_hidden_layers: int = 32
-    num_attention_heads: int = 32
-    num_key_value_heads: int | None = 32
-    head_dim: int = 128
-    hidden_act: str = "silu"
-    max_position_embeddings: int = 32768
-    initializer_range: float = 0.02
-    rms_norm_eps: float = 1e-6
-    use_cache: bool = True
-    tie_word_embeddings: bool = False
-    rope_parameters: RopeParameters | dict | None = None
-    attention_bias: bool = False
-    use_sliding_window: bool = False
-    sliding_window: int | None = 4096
-    max_window_layers: int = 28
-    layer_types: list[str] | None = None
-    attention_dropout: float | int = 0.0
-    pad_token_id: int | None = None
-    bos_token_id: int | None = None
-    eos_token_id: int | list[int] | None = None
+    def __init__(
+        self,
+        vocab_size=151936,
+        hidden_size=4096,
+        intermediate_size=12288,
+        num_hidden_layers=36,
+        num_attention_heads=32,
+        num_key_value_heads=8,
+        head_dim=128,
+        hidden_act="silu",
+        max_position_embeddings=40960,
+        initializer_range=0.02,
+        rms_norm_eps=1e-6,
+        use_cache=True,
+        tie_word_embeddings=False,
+        rope_theta=1000000.0,
+        rope_scaling=None,
+        attention_bias=False,
+        attention_dropout=0.0,
+        use_sliding_window=False,
+        sliding_window=None,
+        max_window_layers=36,
+        layer_types=None,
+        bd_size=32,
+        mask_token_id=151669,
+        mask_token="|<MASK>|",
+        complementary_mask=True,
+        conplemenrary_mask=None,
+        pad_token_id=151643,
+        bos_token_id=151643,
+        eos_token_id=151645,
+        **kwargs,
+    ):
+        # Qwen3 architecture fields.
+        self.vocab_size = vocab_size
+        self.max_position_embeddings = max_position_embeddings
+        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size
+        self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_attention_heads
+        self.head_dim = head_dim
 
-    def __post_init__(self, **kwargs):
-        self.sliding_window = self.sliding_window if self.use_sliding_window else None
-        if self.num_key_value_heads is None:
-            self.num_key_value_heads = self.num_attention_heads
+        # Qwen3 uses grouped-query attention. Keep backward compatibility
+        # with configs where num_key_value_heads may be None.
+        if num_key_value_heads is None:
+            num_key_value_heads = num_attention_heads
+        self.num_key_value_heads = num_key_value_heads
 
-        if self.layer_types is None:
+        self.hidden_act = hidden_act
+        self.initializer_range = initializer_range
+        self.rms_norm_eps = rms_norm_eps
+        self.use_cache = use_cache
+        self.tie_word_embeddings = tie_word_embeddings
+
+        # RoPE fields. Qwen3-8B uses rope_theta=1000000 and rope_scaling=None.
+        self.rope_theta = rope_theta
+        self.rope_scaling = rope_scaling
+
+        # Backward compatibility: older configs may use {"type": ...}
+        # instead of {"rope_type": ...}.
+        if self.rope_scaling is not None and "type" in self.rope_scaling:
+            self.rope_scaling["rope_type"] = self.rope_scaling["type"]
+
+        self.attention_bias = attention_bias
+        self.attention_dropout = attention_dropout
+
+        # Sliding-window fields. Qwen3-8B has use_sliding_window=False,
+        # sliding_window=None, and all layers are full attention.
+        self.use_sliding_window = use_sliding_window
+        self.sliding_window = sliding_window if self.use_sliding_window else None
+        self.max_window_layers = max_window_layers
+
+        if layer_types is None:
             self.layer_types = [
                 "sliding_attention"
                 if self.sliding_window is not None and i >= self.max_window_layers
                 else "full_attention"
                 for i in range(self.num_hidden_layers)
             ]
-        super().__post_init__(**kwargs)
+        else:
+            self.layer_types = layer_types
+
+        layer_type_validation(self.layer_types)
+
+        # Fast-dLLM v2 block-diffusion fields.
+        self.bd_size = bd_size
+        self.mask_token_id = mask_token_id
+        self.mask_token = mask_token
+
+        # Compatibility with the typo present in some Fast-dLLM configs.
+        if conplemenrary_mask is not None:
+            complementary_mask = conplemenrary_mask
+        self.complementary_mask = complementary_mask
+        self.conplemenrary_mask = complementary_mask
+
+        # Validate rotary embedding configuration when available.
+        rope_config_validation(self)
+
+        super().__init__(
+            pad_token_id=pad_token_id,
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            tie_word_embeddings=tie_word_embeddings,
+            **kwargs,
+        )
 
 
-__all__ = ["Qwen3Config"]
+# Compatibility alias. This is useful while migrating imports from Qwen3Config
+# to Fast_dLLM_Qwen3Config.
+Qwen3Config = Fast_dLLM_Qwen3Config
+
+
+__all__ = ["Fast_dLLM_Qwen3Config", "Qwen3Config"]
