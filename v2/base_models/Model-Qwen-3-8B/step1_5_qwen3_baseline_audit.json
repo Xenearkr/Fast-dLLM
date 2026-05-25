@@ -1,0 +1,229 @@
+{
+  "model_dir": "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B",
+  "model_class": "Qwen3ForCausalLM",
+  "param_count": 8190735360,
+  "config_summary": {
+    "model_type": "qwen3",
+    "architectures": [
+      "Qwen3ForCausalLM"
+    ],
+    "vocab_size": 151936,
+    "hidden_size": 4096,
+    "intermediate_size": 12288,
+    "num_hidden_layers": 36,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "head_dim": 128,
+    "attention_bias": false,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 1000000,
+    "max_position_embeddings": 40960,
+    "bos_token_id": 151643,
+    "eos_token_id": 151645,
+    "pad_token_id": null,
+    "tie_word_embeddings": false,
+    "use_cache": true
+  },
+  "tokenizer_summary": {
+    "len_tokenizer": 151669,
+    "tokenizer_vocab_size": 151643,
+    "bos_token": null,
+    "bos_token_id": null,
+    "eos_token": "<|im_end|>",
+    "eos_token_id": 151645,
+    "pad_token": "<|endoftext|>",
+    "pad_token_id": 151643,
+    "unk_token": null,
+    "unk_token_id": null,
+    "additional_special_tokens": [
+      "<|im_start|>",
+      "<|im_end|>",
+      "<|object_ref_start|>",
+      "<|object_ref_end|>",
+      "<|box_start|>",
+      "<|box_end|>",
+      "<|quad_start|>",
+      "<|quad_end|>",
+      "<|vision_start|>",
+      "<|vision_end|>",
+      "<|vision_pad|>",
+      "<|image_pad|>",
+      "<|video_pad|>"
+    ],
+    "special_tokens_map": {
+      "eos_token": "<|im_end|>",
+      "pad_token": "<|endoftext|>",
+      "additional_special_tokens": [
+        "<|im_start|>",
+        "<|im_end|>",
+        "<|object_ref_start|>",
+        "<|object_ref_end|>",
+        "<|box_start|>",
+        "<|box_end|>",
+        "<|quad_start|>",
+        "<|quad_end|>",
+        "<|vision_start|>",
+        "<|vision_end|>",
+        "<|vision_pad|>",
+        "<|image_pad|>",
+        "<|video_pad|>"
+      ]
+    },
+    "important_token_ids": {
+      "<|endoftext|>": 151643,
+      "<|im_start|>": 151644,
+      "<|im_end|>": 151645,
+      "<tool_call>": 151657,
+      "</tool_call>": 151658,
+      "<|tool_calls_section_begin|>": null,
+      "<|tool_calls_section_end|>": null,
+      "<tool_response>": 151665,
+      "</tool_response>": 151666,
+      "<think>": 151667,
+      "</think>": 151668,
+      "|<MASK>|": null
+    },
+    "num_added_vocab_entries": 26,
+    "added_vocab_tail": {
+      "<|endoftext|>": 151643,
+      "<|im_start|>": 151644,
+      "<|im_end|>": 151645,
+      "<|object_ref_start|>": 151646,
+      "<|object_ref_end|>": 151647,
+      "<|box_start|>": 151648,
+      "<|box_end|>": 151649,
+      "<|quad_start|>": 151650,
+      "<|quad_end|>": 151651,
+      "<|vision_start|>": 151652,
+      "<|vision_end|>": 151653,
+      "<|vision_pad|>": 151654,
+      "<|image_pad|>": 151655,
+      "<|video_pad|>": 151656,
+      "<tool_call>": 151657,
+      "</tool_call>": 151658,
+      "<|fim_prefix|>": 151659,
+      "<|fim_middle|>": 151660,
+      "<|fim_suffix|>": 151661,
+      "<|fim_pad|>": 151662,
+      "<|repo_name|>": 151663,
+      "<|file_sep|>": 151664,
+      "<tool_response>": 151665,
+      "</tool_response>": 151666,
+      "<think>": 151667,
+      "</think>": 151668
+    },
+    "has_chat_template": true,
+    "chat_template_prefix": "{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0].role == 'system' %}\n        {{- messages[0].content + '\\n\\n' }}\n    {%- endif %}\n    {{- \"# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\" }}\n    {%- for tool in tools %}\n        {{- \"\\n\" }}\n        {{- tool | tojson }}\n    {%- endfor %}\n    {{- \"\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\\"name\\\": <function-name>, \\\"arguments\\\": <args-json-object>}\\n</tool_call><|im_end|>\\n\" }}\n{%- else %}\n    {%- if messages[0].role == 'system' %}\n        {{- '<|im_start|>system\\n' + messages[0].content + '<|im_end|"
+  },
+  "weight_index_summary": {
+    "num_weight_keys": 399,
+    "num_shards": 5,
+    "has_embed_tokens": true,
+    "has_lm_head": true,
+    "num_q_norm_keys": 36,
+    "num_k_norm_keys": 36,
+    "num_q_proj_bias_keys": 0,
+    "num_k_proj_bias_keys": 0,
+    "num_v_proj_bias_keys": 0,
+    "num_o_proj_bias_keys": 0,
+    "sample_q_norm_keys": [
+      "model.layers.0.self_attn.q_norm.weight",
+      "model.layers.1.self_attn.q_norm.weight",
+      "model.layers.10.self_attn.q_norm.weight"
+    ],
+    "sample_k_norm_keys": [
+      "model.layers.0.self_attn.k_norm.weight",
+      "model.layers.1.self_attn.k_norm.weight",
+      "model.layers.10.self_attn.k_norm.weight"
+    ]
+  },
+  "tensor_shapes": {
+    "model.embed_tokens.weight": {
+      "shape": [
+        151936,
+        4096
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "lm_head.weight": {
+      "shape": [
+        151936,
+        4096
+      ],
+      "shard": "model-00005-of-00005.safetensors"
+    },
+    "model.layers.0.self_attn.q_proj.weight": {
+      "shape": [
+        4096,
+        4096
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.self_attn.k_proj.weight": {
+      "shape": [
+        1024,
+        4096
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.self_attn.v_proj.weight": {
+      "shape": [
+        1024,
+        4096
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.self_attn.o_proj.weight": {
+      "shape": [
+        4096,
+        4096
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.self_attn.q_norm.weight": {
+      "shape": [
+        128
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.self_attn.k_norm.weight": {
+      "shape": [
+        128
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.mlp.gate_proj.weight": {
+      "shape": [
+        12288,
+        4096
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.mlp.up_proj.weight": {
+      "shape": [
+        12288,
+        4096
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.layers.0.mlp.down_proj.weight": {
+      "shape": [
+        4096,
+        12288
+      ],
+      "shard": "model-00001-of-00005.safetensors"
+    },
+    "model.norm.weight": {
+      "shape": [
+        4096
+      ],
+      "shard": "model-00004-of-00005.safetensors"
+    }
+  },
+  "decision_hints": {
+    "tokenizer_len_le_config_vocab_size": true,
+    "mask_token_already_exists": false,
+    "qwen3_qk_norm_present_for_all_layers": true,
+    "attention_bias_keys_absent": true
+  }
+}
