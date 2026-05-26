@@ -8,6 +8,7 @@ import types
 # path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723"
 # path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_222644"
 
+# AR 模型，只为了检验能用，理论上权重不适配，但是其评测结果似乎证实了Qwen3-8B 的 threshold 和 use_block_cache 确实能加速...
 path = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
 # path = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 

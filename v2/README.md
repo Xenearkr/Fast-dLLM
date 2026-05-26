@@ -2,18 +2,21 @@
 
 ## 重要说明
 
-1. 致管理员：Utopia分支所有前缀为public的分支都是稳定版本，可以merge进主分支。
+1. 致管理员：utopia分支所有前缀为public的分支都是稳定版本，可以merge进主分支。
 
-2. 我已经无力写使用说明了-_-，有不懂的请直接问我。
+2. 我已经无力写特别详细的使用说明了-_-，有不懂的请直接问我。
 
-3. 我要休息一下-_-，有余力解决下面问题的请根据兴趣尽情施展才能！
+3. 如果有余力解决下面TBD部分列举的问题，请根据兴趣尽情施展才能！
 
+
+---
 
 ## TBD【汇总了目前能想到的所有待解决的重大问题】
 
 ### 1. LoRA排查(训练部分)
 
 简而言之，LoRA目前效果欠佳（即使是和同样只训了1000 steps的full-tune版本对比）。我的结果如下：
+
 ```
 # qwen2.5_1000_lora mbpp
 mbpp (base tests)
@@ -28,9 +31,9 @@ humaneval+ (base + extra tests)
 pass@1: 0.000
 ```
 
-建议自己试一下LoRA训练+评测流程，我们希望区分这个效果是因为评测逻辑、接口不对或者训练不充分，还是LoRA方法本身不行。（个人现在逐渐倾向于后者）
+这只是我的结果，由于没有进一步控制变量，这个结果不行不一定代表LoRA不行。建议自己试一下LoRA训练+评测流程，我们希望区分这个效果是因为评测逻辑、接口不对或者训练不充分，还是LoRA方法本身不行。（虽然但是，个人现在逐渐倾向于后者）
 
-注意：请仔细阅读full-tune和lora的脚本和configs区别。现在的LoRA是需要后期merge的，而且使用了flash-attn；与此相对的，Full版本有些地方很不一样【特别提示：目前Qwen3基底不支持flash-attn，但是Qwen2.5支持flash-attn，需要实时调整configs！】
+注意：请仔细阅读full-tune和lora的脚本和configs区别。现在的LoRA是需要后期merge的，而且使用了flash-attn；与此相对的，Full版本有些地方很不一样【特别提示1：目前Qwen3基底不支持flash-attn，但是Qwen2.5支持flash-attn，需要实时调整configs！】【特别提示2：最新版full_config支持自动保存safetensors类型，即stage3_gather_16bit_weights_on_model_save": true；而lora_config不支持】
 
 ### 2. 进一步改进、加速humaneval与mbpp评测
 
@@ -50,7 +53,37 @@ pass@1: 0.000
 
 1. 没有添加flash-attn支持。
 
-2. 能跑通且loss曲线看起来正常，正在训练1000 steps版本。训练效果待检验。
+2. 能跑通且loss曲线看起来正常，正在训练1000 steps版本。训练效果：
+
+```
+# qwen3_1000 humaneval
+humaneval (base tests)
+pass@1: 0.427
+humaneval+ (base + extra tests)
+pass@1: 0.396
+
+# qwen3_1000 mbpp
+mbpp (base tests)
+pass@1: 0.561
+mbpp+ (base + extra tests)
+pass@1: 0.484
+```
+
+对比：
+
+```
+# qwen2.5_1000 humaneval
+humaneval (base tests)
+pass@1: 0.439
+humaneval+ (base + extra tests)
+pass@1: 0.384
+
+# qwen2.5_1000 mbpp
+mbpp (base tests)
+pass@1: 0.505
+mbpp+ (base + extra tests)
+pass@1: 0.418
+```
 
 3. 使用v2/train_scripts/step10_process.py作了单样例generate实验，发现一些奇怪现象，限于篇幅和单样例随机性不作赘述，感兴趣可以自行实验。但暴露重要问题：Qwen3版本的generate中use_block_cache逻辑错误，使用这个生成则完全是胡言乱语（不用的话倒是比较正常，但是慢）。【待修复】
 
