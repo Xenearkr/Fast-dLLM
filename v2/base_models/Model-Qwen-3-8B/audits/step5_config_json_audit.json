@@ -1,0 +1,111 @@
+{
+  "model_dir": "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B",
+  "changed_keys": {
+    "architectures": {
+      "before": [
+        "Qwen3ForCausalLM"
+      ],
+      "after": [
+        "Fast_dLLM_Qwen3ForCausalLM"
+      ]
+    },
+    "auto_map": {
+      "before": "<MISSING>",
+      "after": {
+        "AutoConfig": "configuration.Fast_dLLM_Qwen3Config",
+        "AutoModel": "modeling.Fast_dLLM_Qwen3Model",
+        "AutoModelForCausalLM": "modeling.Fast_dLLM_Qwen3ForCausalLM"
+      }
+    },
+    "bd_size": {
+      "before": "<MISSING>",
+      "after": 32
+    },
+    "complementary_mask": {
+      "before": "<MISSING>",
+      "after": true
+    },
+    "conplemenrary_mask": {
+      "before": "<MISSING>",
+      "after": true
+    },
+    "layer_types": {
+      "before": "<MISSING>",
+      "after": [
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention"
+      ]
+    },
+    "mask_token": {
+      "before": "<MISSING>",
+      "after": "|<MASK>|"
+    },
+    "mask_token_id": {
+      "before": "<MISSING>",
+      "after": 151669
+    },
+    "model_type": {
+      "before": "qwen3",
+      "after": "Fast_dLLM_Qwen3"
+    },
+    "pad_token_id": {
+      "before": "<MISSING>",
+      "after": 151643
+    }
+  },
+  "final_core_fields": {
+    "architectures": [
+      "Fast_dLLM_Qwen3ForCausalLM"
+    ],
+    "model_type": "Fast_dLLM_Qwen3",
+    "auto_map": {
+      "AutoConfig": "configuration.Fast_dLLM_Qwen3Config",
+      "AutoModel": "modeling.Fast_dLLM_Qwen3Model",
+      "AutoModelForCausalLM": "modeling.Fast_dLLM_Qwen3ForCausalLM"
+    },
+    "bd_size": 32,
+    "mask_token_id": 151669,
+    "mask_token": "|<MASK>|",
+    "complementary_mask": true,
+    "conplemenrary_mask": true,
+    "pad_token_id": 151643,
+    "layer_types_len": 36,
+    "layer_types_unique": [
+      "full_attention"
+    ]
+  }
+}

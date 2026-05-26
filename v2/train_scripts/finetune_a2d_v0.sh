@@ -9,20 +9,20 @@
 # 3. 调整参数，比如用max-steps控制本轮迭代次数等
 
 
-
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 # 尝试：缓解动态分配尺寸导致的碎片问题
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
-model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
+model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
+# "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
 dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
 
 timestamp=$(date +"%Y%m%d_%H%M%S")
-output_dir="output_models/finetune_fast_dLLM_7B_${timestamp}" # 引入时间戳命名
+output_dir="output_models/finetune_full_${timestamp}" # 引入时间戳命名
 
 deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11000" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
@@ -80,7 +80,7 @@ cmd="deepspeed ${deepspeed_args} \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero3_small_bucket.json \
+    --deepspeed configs/ds_config_zero3_full.json \
     --bf16 \
     --run_name finetune \
     --validation_split_percentage 0 \
@@ -92,8 +92,9 @@ cmd="deepspeed ${deepspeed_args} \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --save_total_limit 10 \
-    --use_flash_attention 1\
-    --gradient_checkpointing 1 "\
+    --use_flash_attention 0 \
+    --gradient_checkpointing 1 \
+    --max_steps 1000 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]

@@ -1,0 +1,6 @@
+{
+  "chat_template_was_present": false,
+  "chat_template_length": 4168,
+  "synced_from": "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B/chat_template.jinja",
+  "synced_to": "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B/tokenizer_config.json"
+}

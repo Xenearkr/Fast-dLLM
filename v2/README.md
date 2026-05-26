@@ -1,5 +1,164 @@
 # Fast-dLLM v2: Efficient Block-Diffusion Large Language Model
 
+## 重要说明
+
+1. 致管理员：utopia分支所有前缀为public的分支都是稳定版本，可以merge进主分支。
+
+2. 我已经无力写特别详细的使用说明了-_-，有不懂的请直接问我。
+
+3. 如果有余力解决下面TBD部分列举的问题，请根据兴趣尽情施展才能！
+
+
+---
+
+## TBD【汇总了目前能想到的所有待解决的重大问题】
+
+### 1. LoRA排查(训练部分)
+
+简而言之，LoRA目前效果欠佳（即使是和同样只训了1000 steps的full-tune版本对比）。我的结果如下：
+
+```
+# qwen2.5_1000_lora mbpp
+mbpp (base tests)
+pass@1: 0.048
+mbpp+ (base + extra tests)
+pass@1: 0.045
+
+# qwen2.5_1000_lora humaneval
+humaneval (base tests)
+pass@1: 0.000
+humaneval+ (base + extra tests)
+pass@1: 0.000
+```
+
+这只是我的结果，由于没有进一步控制变量，这个结果不行不一定代表LoRA不行。建议自己试一下LoRA训练+评测流程，我们希望区分这个效果是因为评测逻辑、接口不对或者训练不充分，还是LoRA方法本身不行。（虽然但是，个人现在逐渐倾向于后者）
+
+注意：请仔细阅读full-tune和lora的脚本和configs区别。现在的LoRA是需要后期merge的，而且使用了flash-attn；与此相对的，Full版本有些地方很不一样【特别提示1：目前Qwen3基底不支持flash-attn，但是Qwen2.5支持flash-attn，需要实时调整configs！】【特别提示2：最新版full_config支持自动保存safetensors类型，即stage3_gather_16bit_weights_on_model_save": true；而lora_config不支持】
+
+### 2. 进一步改进、加速humaneval与mbpp评测
+
+现在评测逻辑正确，速度太慢。改进方向如下：
+
+1. 待添加：目前是单GPU，改成多GPU并行版本，缩短时间。
+
+2. 待添加：在评测过程中记录TPF，TPS等指标并报告？这样可以验证加速效果。
+
+3. 待测试：在generate部分，目前是没有使用use_block_cache，也没有关注是否调整了threshold，而这两者若使用正确可以大幅提升生成速度。
+
+### 3. Qwen3-8B适配和调整
+
+简而言之，Qwen3的底层适配已经基本完成了，且保存了一系列中间状态，成果可见v2/base_models/Model-Qwen-3-8B（主要看modeling.py, configuration.py）。【其中没有的.safetensors, merge.txt, vocab.json, tokenizer.json等直接从网上Qwen3对应仓库下载，对tokenizer.json在step 2有一些改装，如果不想麻烦请找我要】
+
+遗留问题如下：
+
+1. 没有添加flash-attn支持。
+
+2. 能跑通且loss曲线看起来正常，正在训练1000 steps版本。训练效果：
+
+```
+# qwen3_1000 humaneval
+humaneval (base tests)
+pass@1: 0.427
+humaneval+ (base + extra tests)
+pass@1: 0.396
+
+# qwen3_1000 mbpp
+mbpp (base tests)
+pass@1: 0.561
+mbpp+ (base + extra tests)
+pass@1: 0.484
+```
+
+对比：
+
+```
+# qwen2.5_1000 humaneval
+humaneval (base tests)
+pass@1: 0.439
+humaneval+ (base + extra tests)
+pass@1: 0.384
+
+# qwen2.5_1000 mbpp
+mbpp (base tests)
+pass@1: 0.505
+mbpp+ (base + extra tests)
+pass@1: 0.418
+```
+
+3. 使用v2/train_scripts/step10_process.py作了单样例generate实验，发现一些奇怪现象，限于篇幅和单样例随机性不作赘述，感兴趣可以自行实验。但暴露重要问题：Qwen3版本的generate中use_block_cache逻辑错误，使用这个生成则完全是胡言乱语（不用的话倒是比较正常，但是慢）。【待修复】
+
+
+### 4. 长期训练的适配与调参
+
+1. 从Llama-Nemotron中摘取一些math部分数据集？【注意：可能需要转换其格式，可以参考v2/utils中的部分代码】
+
+2. 支持断点续训？【好像已经支持了？只需要传进什么参数？】
+
+3. 精细化调整参数？确定所有的参数设置是否合理？
+
+
+---
+
+## Progress 2025.05.25 更新说明
+
+### 改进内容
+
+1. 在v2/base_models/Model-Qwen-3-8B/下添加了原生Qwen3版本的modeling.py和configuration.py
+
+2. 完全修复了mbpp和humaneval评测逻辑（注意：如果运行eval_humaneval_fast.sh或eval_mbpp_fast.sh报错第x行发现未知符号，只要再bash ?.sh一次就行了）（对mbpp，由于清洗逻辑相对宽松，表现略偏高，但基本符合原文数据）
+
+3. 添加inspect_humaneval_samples.py和inspect_mbpp_samples.py，用于检查coding任务的生成代码是否正确（简要说明为什么要自己写humaneval和mbpp的评测逻辑：似乎原生评测逻辑的接口和Fast类接口不对齐？）
+
+4. 修复LoRA脚本，并最大限度与full脚本对齐【当前状况：能运行、能merge，结果不理想，正在控制变量排查是由于LoRA方法本身不行还是训练方法不对】
+
+### TBD
+
+1. LoRA效果：目前测试效果对比全量微调不佳。若感兴趣，可以在本地自己跑脚本 + coding task评测看效果如何。【注意：当前LoRA设定是不自动合并adapters，需要手动运行merge_lora代码合并】
+
+2. 前期准备结束，正式开始修缮Qwen3-8B子仓库
+
+### 评测结果
+
+```
+# MBPP
+# 论文结果为：0.630, 0.523
+
+# original mbpp
+mbpp (base tests)
+pass@1: 0.683
+mbpp+ (base + extra tests)
+pass@1: 0.582
+
+# qwen2.5_1000 mbpp
+mbpp (base tests)
+pass@1: 0.505
+mbpp+ (base + extra tests)
+pass@1: 0.418
+
+
+# HumanEval
+# 论文结果为：0.634, 0.585
+
+# original humaneval
+humaneval (base tests)
+pass@1: 0.579
+humaneval+ (base + extra tests)
+pass@1: 0.549
+
+# qwen2.5_1000 humaneval
+humaneval (base tests)
+pass@1: 0.439
+humaneval+ (base + extra tests)
+pass@1: 0.384
+```
+
+
+### 其他
+
+训练需要时间。新一轮mini-batch检测与LoRA结果对比最早明天中午才能拿到。
+
+---
+
 ## Progress 2026.05.24-2 更新说明
 
 ### 改进内容
@@ -9,6 +168,8 @@
 2. 修复了mbpp评测逻辑，复现原文结果，除了一点瑕疵之外基本修正成功；humaneval评测逻辑有待改进。支持一键评测。
 
 3. 修复了本README文件，读起来更美观。
+
+4. 添加了LoRA训练脚本。问题：合并逻辑出错、训练效果未知。
 
 ### TBD
 

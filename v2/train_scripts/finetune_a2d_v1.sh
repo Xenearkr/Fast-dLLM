@@ -24,9 +24,9 @@ model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.
 dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
 
 timestamp=$(date +"%Y%m%d_%H%M%S")
-output_dir="output_models/finetune_fast_dLLM_7B_${timestamp}" # 引入时间戳命名
+output_dir="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_${timestamp}" # 引入时间戳命名
 
-deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11000" # 4×A6000 先增加参数
+deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11001" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
 
 # Use system/conda CUDA; if CUDA_HOME is unset, infer from nvcc on PATH.
@@ -76,14 +76,14 @@ cmd="deepspeed ${deepspeed_args} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
     --max_steps 1000 \
-    --learning_rate 2e-5 \
+    --learning_rate 1e-4 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
     --disable_group_texts 0 \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero3_no_offload.json \
+    --deepspeed configs/ds_config_zero3_lora.json \
     --bf16 \
     --run_name finetune_lora \
     --validation_split_percentage 0 \
@@ -94,15 +94,15 @@ cmd="deepspeed ${deepspeed_args} \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
-    --save_total_limit 10 \
     --use_flash_attention 1 \
     --gradient_checkpointing 1 \
     --use_lora true \
     --lora_r 8 \
     --lora_alpha 32 \
     --lora_dropout 0.1 \
-    --lora_target_modules q_proj,k_proj,v_proj,o_proj \
-    --save_aggregated_lora true"
+    --lora_target_modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
+    --save_aggregated_lora false \
+    --save_total_limit 3"
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]

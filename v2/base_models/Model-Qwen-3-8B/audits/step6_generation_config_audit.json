@@ -1,0 +1,18 @@
+{
+  "model_dir": "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B",
+  "policy": "Keep Qwen3 generation defaults; Fast diffusion decoding knobs live in modeling.py.generate().",
+  "changed_keys": {},
+  "final_generation_config": {
+    "bos_token_id": 151643,
+    "do_sample": true,
+    "eos_token_id": [
+      151645,
+      151643
+    ],
+    "pad_token_id": 151643,
+    "temperature": 0.6,
+    "top_k": 20,
+    "top_p": 0.95,
+    "transformers_version": "4.51.0"
+  }
+}

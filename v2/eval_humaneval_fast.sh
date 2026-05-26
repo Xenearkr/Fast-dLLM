@@ -3,10 +3,12 @@
 # 使用方法：
 # bash eval_humaneval_fast.sh Fast
 # bash eval_humaneval_fast.sh Qwen2.5
+# bash eval_humaneval_fast.sh Qwen2.5_LoRA
+# bash eval_humaneval_fast.sh Qwen3
 
 set -euo pipefail
 
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=1
 cd /home/u-shengbf/Codes/Fast-dLLM/v2/
 mkdir -p evalplus_results
 
@@ -18,12 +20,18 @@ DATASET="humaneval"
 case "$METHOD" in
   Fast)
     MODEL_PATH="Efficient-Large-Model/Fast_dLLM_v2_7B"
-    OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
     ;;
 
   Qwen2.5)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260521_222723"
-    OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
+    ;;
+
+  Qwen2.5_LoRA)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
+    ;;
+
+  Qwen3)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_234355" #"/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_222644" 
     ;;
 
   *)
@@ -33,6 +41,8 @@ case "$METHOD" in
     ;;
 esac
 
+OUTPUT="evalplus_results/${METHOD}/humaneval_fast.jsonl"
+
 mkdir -p "evalplus_results/${METHOD}"
 
 echo "METHOD=${METHOD}"
@@ -41,6 +51,7 @@ echo "OUTPUT=${OUTPUT}"
 
 
 SANITIZED_OUTPUT="${OUTPUT%.jsonl}-sanitized.jsonl"
+PATCHED_OUTPUT="${OUTPUT%.jsonl}-patched.jsonl"
 
 
 
@@ -81,7 +92,28 @@ evalplus.syncheck \
   --dataset "$DATASET" \
   --samples "$SANITIZED_OUTPUT"
 
-echo "开始 EvalPlus evaluate: $SANITIZED_OUTPUT"
+if [ -f "$PATCHED_OUTPUT" ]; then
+  echo "已有 patched 文件，跳过 patch: $PATCHED_OUTPUT"
+else
+  echo "开始对比 raw/sanitized 并生成 patched 文件: $PATCHED_OUTPUT"
+  python patch_humaneval_sanitized.py \
+    --raw "$OUTPUT" \
+    --sanitized "$SANITIZED_OUTPUT" \
+    --output "$PATCHED_OUTPUT"
+fi
+
+echo "开始 patched inspect: $PATCHED_OUTPUT"
+python inspect_humaneval_samples.py \
+  --samples "$PATCHED_OUTPUT" \
+  --show_n 5 \
+  --show_bad_n 10
+
+echo "开始 patched 语法检查: $PATCHED_OUTPUT"
+evalplus.syncheck \
+  --dataset "$DATASET" \
+  --samples "$PATCHED_OUTPUT"
+
+echo "开始 EvalPlus evaluate: $PATCHED_OUTPUT"
 evalplus.evaluate \
   --dataset "$DATASET" \
-  --samples "$SANITIZED_OUTPUT"
+  --samples "$PATCHED_OUTPUT"

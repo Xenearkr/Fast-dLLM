@@ -1,0 +1,158 @@
+diff --git a/v2/base_models/Model-Qwen-3-8B/modeling.py b/v2/base_models/Model-Qwen-3-8B/modeling.py
+index ada5c20..262a574 100644
+--- a/v2/base_models/Model-Qwen-3-8B/modeling.py
++++ b/v2/base_models/Model-Qwen-3-8B/modeling.py
+@@ -1,8 +1,14 @@
+ from collections.abc import Callable
++from dataclasses import dataclass
+ from typing import Optional, Union
+ 
+ import torch
+ from torch import nn
++try:
++    from torch.nn.attention.flex_attention import flex_attention, create_block_mask
++except Exception:
++    flex_attention = None
++    create_block_mask = None
+ 
+ from transformers.activations import ACT2FN
+ from transformers.cache_utils import Cache, DynamicCache
+@@ -110,6 +116,138 @@ except ImportError:
+     from configuration import Fast_dLLM_Qwen3Config
+ 
+ 
++# ---------------------------------------------------------------------
++# Fast-dLLM v2 block-diffusion utilities.
++# Added in Milestone 4B. These utilities are not connected to forward()
++# until later milestones.
++# ---------------------------------------------------------------------
++
++@dataclass
++class CausalLMOutputWithPastAndBlockCache(CausalLMOutputWithPast):
++    block_past_key_values: Optional[Cache] = None
++
++
++@dataclass
++class BaseModelOutputWithPastAndBlockCache(BaseModelOutputWithPast):
++    block_past_key_values: Optional[Cache] = None
++
++
++def fused_flex_attention(q, k, v, mask=None):
++    """
++    Thin wrapper around torch flex_attention used by Fast-dLLM training.
++
++    The actual forward path is not connected in Milestone 4B. If the current
++    PyTorch build does not provide flex_attention, this function raises a clear
++    error when called.
++    """
++    if flex_attention is None:
++        raise RuntimeError(
++            "torch.nn.attention.flex_attention is unavailable in this environment. "
++            "Install a PyTorch version with flex_attention support before enabling "
++            "Fast-dLLM training attention."
++        )
++    return flex_attention(q, k, v, block_mask=mask, enable_gqa=True)
++
++
++def block_diff_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
++    """
++    Construct the Fast-dLLM block-diffusion attention mask for training.
++
++    The concatenated training sequence is [x_t ; x_0], where each half has
++    length n. The mask is composed of:
++
++    1. Block Diagonal Mask:
++       tokens attend bidirectionally within the same block of the same half.
++
++    2. Offset Block-Causal Mask:
++       noised tokens x_t^b attend to previous clean blocks x_0^{<b}.
++
++    3. Block-Causal Mask:
++       clean tokens x_0^b attend to clean blocks x_0^{<=b}.
++
++    Args:
++        b, h:
++            Batch and head indices. They are ignored by the logical mask but
++            kept for create_block_mask compatibility.
++        q_idx:
++            Query indices.
++        kv_idx:
++            Key/value indices.
++        block_size:
++            Block size D.
++        n:
++            Length of each half sequence. Total concatenated length is 2n.
++
++    Returns:
++        Boolean tensor indicating allowed attention positions.
++    """
++    if block_size is None:
++        raise ValueError("block_size must be provided.")
++    if n is None:
++        raise ValueError("n must be provided.")
++
++    x0_flag_q = q_idx >= n
++    x0_flag_kv = kv_idx >= n
++
++    block_q = torch.where(
++        x0_flag_q,
++        (q_idx - n) // block_size,
++        q_idx // block_size,
++    )
++    block_kv = torch.where(
++        x0_flag_kv,
++        (kv_idx - n) // block_size,
++        kv_idx // block_size,
++    )
++
++    # M_BD: within-block bidirectional attention inside the same half.
++    block_diagonal = (block_q == block_kv) & (x0_flag_q == x0_flag_kv)
++
++    # M_OBC: noised x_t block attends to previous clean x_0 blocks.
++    offset_block_causal = (
++        (block_q > block_kv)
++        & (x0_flag_kv == 1)
++        & (x0_flag_q == 0)
++    )
++
++    # M_BC: clean x_0 block attends to current and previous clean blocks.
++    block_causal = (
++        (block_q >= block_kv)
++        & (x0_flag_kv == 1)
++        & (x0_flag_q == 1)
++    )
++
++    return block_diagonal | offset_block_causal | block_causal
++
++
++def eval_block_diff_mask(q_idx, kv_idx, block_size=None):
++    """
++    Construct the block-causal mask used by Fast-dLLM inference.
++
++    This mask is block-level causal: tokens in a query block may attend to
++    key/value tokens from the same block and all earlier blocks.
++
++    Args:
++        q_idx:
++            Query indices.
++        kv_idx:
++            Key/value indices.
++        block_size:
++            Block size D.
++
++    Returns:
++        Boolean tensor indicating allowed attention positions.
++    """
++    if block_size is None:
++        raise ValueError("block_size must be provided.")
++
++    block_q = q_idx // block_size
++    block_kv = kv_idx // block_size
++    return block_q >= block_kv
++
++
++
++
+ @use_kernel_forward_from_hub("RMSNorm")
+ class Fast_dLLM_Qwen3RMSNorm(nn.Module):
+     def __init__(self, hidden_size, eps: float = 1e-6) -> None:

@@ -1,3 +1,4 @@
+# generate_mbpp_fast_examples.py
 import argparse
 import ast
 import json
@@ -12,88 +13,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 COMMON_NON_TARGET_CALLS = {
-    "assert",
-    "set",
-    "list",
-    "tuple",
-    "dict",
-    "len",
-    "sum",
-    "min",
-    "max",
-    "abs",
-    "all",
-    "any",
-    "sorted",
-    "round",
-    "range",
-    "str",
-    "int",
-    "float",
-    "bool",
-    "print",
-    "enumerate",
-    "zip",
-    "map",
-    "filter",
-    "isinstance",
-    "type",
-    "reversed",
-    "math",
-    "re",
+    "assert", "set", "list", "tuple", "dict", "len", "sum", "min", "max",
+    "abs", "all", "any", "sorted", "round", "range", "str", "int", "float",
+    "bool", "print", "enumerate", "zip", "map", "filter", "isinstance",
+    "type", "reversed", "math", "re",
 }
-
-
-def normalize_name(name: str) -> str:
-    return name.lower()
-
-
-class RenameFunction(ast.NodeTransformer):
-    def __init__(self, old_name: str, new_name: str):
-        self.old_name = old_name
-        self.new_name = new_name
-
-    def visit_FunctionDef(self, node):
-        if node.name == self.old_name:
-            node.name = self.new_name
-        return self.generic_visit(node)
-
-
-def ensure_entry_point_name(code: str, entry_point: str) -> str:
-    """
-    如果模型生成的函数名与 EvalPlus 期望 entry point 只是大小写不同，
-    自动重命名为期望函数名。
-    """
-    try:
-        tree = ast.parse(code)
-    except SyntaxError:
-        return code
-
-    func_names = [
-        node.name for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef)
-    ]
-
-    if entry_point in func_names:
-        return code
-
-    # 优先找大小写无关匹配
-    candidates = [
-        name for name in func_names
-        if normalize_name(name) == normalize_name(entry_point)
-    ]
-
-    # 如果没有大小写无关匹配，但只有一个函数，也可以考虑改名
-    # 这里建议保守一点，只处理大小写无关匹配。
-    if not candidates:
-        return code
-
-    old_name = candidates[0]
-    tree = RenameFunction(old_name, entry_point).visit(tree)
-    ast.fix_missing_locations(tree)
-
-    return ast.unparse(tree) + "\n"
-
 
 
 def import_generation_functions():
@@ -114,16 +38,11 @@ def load_mbpp_tasks():
 
 
 def get_entry_point(problem: dict) -> str:
-    """
-    优先使用 EvalPlus task 自带 entry_point。
-    如果没有，则从 test_list 中推断函数名。
-    """
     for key in ("entry_point", "canonical_entry_point"):
         if key in problem and problem[key]:
             return problem[key]
 
     tests = "\n".join(problem.get("test_list", []))
-
     calls = re.findall(r"\b([A-Za-z_]\w*)\s*\(", tests)
     calls = [c for c in calls if c not in COMMON_NON_TARGET_CALLS]
 
@@ -135,23 +54,25 @@ def get_entry_point(problem: dict) -> str:
 
 def build_mbpp_prompt(problem: dict) -> str:
     """
-    MBPP 不是 HumanEval 式函数补全。
-    这里给模型自然语言题目 + 测试断言 + 目标函数名，让模型生成完整函数。
+    MBPP 是完整函数生成，不是 HumanEval 式函数补全。
+    这里强制模型遵守 EvalPlus 期望的 entry point。
     """
     entry_point = get_entry_point(problem)
     tests = "\n".join(problem.get("test_list", []))
     prompt = problem["prompt"].strip()
 
     return (
-        "Write a complete Python function for the following programming problem.\n"
+        "You are writing a solution for an EvalPlus MBPP task.\n"
         "Return ONLY executable Python code.\n"
         "Do NOT include Markdown fences.\n"
         "Do NOT include explanations.\n"
         "Do NOT include test cases or assert statements.\n"
-        f"The required function name is: {entry_point}\n\n"
+        "Do NOT define a differently named top-level function.\n"
+        f"The required top-level function name is exactly: {entry_point}\n"
+        f"The solution must define `def {entry_point}(...):` or an equivalent callable named `{entry_point}`.\n\n"
         f"Problem:\n{prompt}\n\n"
         f"The function must pass these tests:\n{tests}\n\n"
-        "Python code:\n"
+        "Python code only:\n"
     )
 
 
@@ -183,7 +104,7 @@ def remove_markdown(text: str) -> str:
 
 
 def fenced_blocks(text: str):
-    return re.findall(r"```(?:python)?\n(.*?)```", text, flags=re.S)
+    return re.findall(r"```(?:python)?\s*\n(.*?)```", text, flags=re.S)
 
 
 def cut_tail_after_code(text: str) -> str:
@@ -194,6 +115,10 @@ def cut_tail_after_code(text: str) -> str:
     text = text.replace("\r\n", "\n")
 
     stop_patterns = [
+        "\n### Explanation",
+        "\n## Explanation",
+        "\n# Explanation",
+        "\n###",
         "\nThe function",
         "\nThis function",
         "\nExplanation",
@@ -228,7 +153,6 @@ def candidate_from_target_def(text: str, entry_point: str):
     if not m:
         return None
 
-    # 保留 def 之前连续的 import/from 行
     before = text[:m.start()]
     import_lines = []
     for line in before.splitlines():
@@ -240,6 +164,31 @@ def candidate_from_target_def(text: str, entry_point: str):
     if import_lines:
         return "\n".join(import_lines) + "\n\n" + body
     return body
+
+
+def candidate_from_case_insensitive_target_def(text: str, entry_point: str):
+    """
+    只用于捕捉 count_substrings vs count_Substrings 这种大小写差异。
+    不处理 find_n_largest vs heap_queue_largest 这种语义不同函数名。
+    """
+    text = remove_markdown(text)
+    pattern = r"def\s+([A-Za-z_]\w*)\s*\("
+    for m in re.finditer(pattern, text):
+        found = m.group(1)
+        if found.lower() == entry_point.lower():
+            before = text[:m.start()]
+            import_lines = []
+            for line in before.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("import ") or stripped.startswith("from "):
+                    import_lines.append(line)
+
+            body = text[m.start():]
+            if import_lines:
+                return "\n".join(import_lines) + "\n\n" + body
+            return body
+
+    return None
 
 
 def candidate_from_first_code_start(text: str):
@@ -264,42 +213,107 @@ def make_compilable_stub(entry_point: str) -> str:
     return f"def {entry_point}(*args, **kwargs):\n    return None\n"
 
 
+class ConservativeRename(ast.NodeTransformer):
+    """
+    只用于大小写不一致的同名重命名。
+    例如 count_substrings -> count_Substrings。
+    不用于语义不同的函数名。
+    """
+    def __init__(self, old_name: str, new_name: str):
+        self.old_name = old_name
+        self.new_name = new_name
+
+    def visit_FunctionDef(self, node):
+        if node.name == self.old_name:
+            node.name = self.new_name
+        return self.generic_visit(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        if node.name == self.old_name:
+            node.name = self.new_name
+        return self.generic_visit(node)
+
+    def visit_Name(self, node):
+        if node.id == self.old_name:
+            node.id = self.new_name
+        return node
+
+
+def ensure_entry_point_name_conservative(code: str, entry_point: str) -> str:
+    """
+    只处理大小写不同但 lower 完全相同的 entry point。
+    不会把 find_n_largest 改成 heap_queue_largest。
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+
+    defined_names = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            defined_names.append(node.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    defined_names.append(target.id)
+        elif isinstance(node, ast.AnnAssign):
+            if isinstance(node.target, ast.Name):
+                defined_names.append(node.target.id)
+
+    if entry_point in defined_names:
+        return code
+
+    candidates = [name for name in defined_names if name.lower() == entry_point.lower()]
+    if not candidates:
+        return code
+
+    old_name = candidates[0]
+    tree = ConservativeRename(old_name, entry_point).visit(tree)
+    ast.fix_missing_locations(tree)
+
+    return ast.unparse(tree) + "\n"
+
+
 def clean_generated_mbpp_code(raw_text: str, problem: dict):
     """
-    生成时即时清理，不再对已有文件做事后清洗。
-    目标：写入 JSONL 的 solution 尽量就是可执行 Python code。
+    生成时即时清理，写入 JSONL 前保证 solution 尽量是 EvalPlus 可执行代码。
+    不做激进函数名改写，避免屏蔽模型本身问题。
     """
     entry_point = get_entry_point(problem)
-
     candidates = []
 
-    # 1. 如果模型用了 markdown code block，优先考虑 code block。
     for block in fenced_blocks(raw_text):
         candidates.append(("fence", block))
 
-    # 2. 从目标函数 def entry_point(...) 开始抽取。
-    c = candidate_from_target_def(raw_text, entry_point)
-    if c is not None:
-        candidates.append(("target_def", c))
+    exact = candidate_from_target_def(raw_text, entry_point)
+    if exact is not None:
+        candidates.append(("target_def", exact))
 
-    # 3. 从第一个 import/from/def/class 开始抽取。
+    ci = candidate_from_case_insensitive_target_def(raw_text, entry_point)
+    if ci is not None:
+        candidates.append(("case_insensitive_target_def", ci))
+
     candidates.append(("first_code", candidate_from_first_code_start(raw_text)))
-
-    # 4. 原文去 markdown 兜底。
     candidates.append(("raw_no_md", remove_markdown(raw_text)))
 
     scored = []
     for name, candidate in candidates:
         code = cut_tail_after_code(candidate)
+        code = ensure_entry_point_name_conservative(code, entry_point)
 
         score = 0
         if f"def {entry_point}" in code:
             score += 100
+        if entry_point in code:
+            score += 25
         if is_compilable(code):
             score += 50
-        if "def " in code:
+        if "def " in code or "=" in code:
             score += 10
         if "```" not in code:
+            score += 2
+        if "Explanation" not in code and "###" not in code:
             score += 2
 
         scored.append((score, name, code))
@@ -307,7 +321,7 @@ def clean_generated_mbpp_code(raw_text: str, problem: dict):
     scored.sort(key=lambda x: x[0], reverse=True)
 
     for _, _, code in scored:
-        if f"def {entry_point}" in code and is_compilable(code):
+        if entry_point in code and is_compilable(code):
             return code, True
 
     for _, _, code in scored:
@@ -332,9 +346,6 @@ def fast_batch_generate(
     top_p,
     temperature,
 ):
-    """
-    使用 generation_functions.py 里的 batch_sample。
-    """
     input_id_list = []
     seq_lens = []
     max_len = 0
@@ -407,10 +418,6 @@ def fast_generate_single_fallback(
     top_p,
     temperature,
 ):
-    """
-    如果没有 generation_functions.py，则用模型自带 generate。
-    这个路径慢一些，但更少依赖外部 batch_sample。
-    """
     completions = []
 
     for prompt in prompts:
@@ -488,7 +495,7 @@ def main():
     parser.add_argument(
         "--use_chat_template",
         action="store_true",
-        help="Use tokenizer chat template. Default False is usually better for EvalPlus-style code generation.",
+        help="Use tokenizer chat template. Default False is usually better for EvalPlus-style MBPP generation.",
     )
 
     args = parser.parse_args()
@@ -559,7 +566,6 @@ def main():
     with output_path.open("w", encoding="utf-8") as f:
         for start in tqdm(range(0, len(items), args.batch_size), desc="Generating MBPP"):
             batch_items = items[start : start + args.batch_size]
-
             task_ids = [x[0] for x in batch_items]
             problems_batch = [x[1] for x in batch_items]
 
@@ -589,9 +595,6 @@ def main():
 
             for task_id, problem, completion in zip(task_ids, problems_batch, completions):
                 solution, ok = clean_generated_mbpp_code(completion, problem)
-
-                entry_point = get_entry_point(problem)
-                solution = ensure_entry_point_name(solution, entry_point)
 
                 if not ok:
                     failed_extract.append(task_id)
