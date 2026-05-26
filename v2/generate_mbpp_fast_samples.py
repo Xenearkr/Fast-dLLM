@@ -20,6 +20,22 @@ COMMON_NON_TARGET_CALLS = {
 }
 
 
+def str2bool(value):
+    if isinstance(value, bool):
+        return value
+
+    value = value.lower()
+    if value in ("yes", "true", "t", "y", "1", "on"):
+        return True
+    if value in ("no", "false", "f", "n", "0", "off"):
+        return False
+
+    raise argparse.ArgumentTypeError(
+        f"Boolean value expected, got: {value}. "
+        "Use true/false, yes/no, 1/0, or on/off."
+    )
+
+
 def import_generation_functions():
     try:
         import generation_functions
@@ -483,7 +499,18 @@ def main():
     parser.add_argument("--bd_size", type=int, default=32)
     parser.add_argument("--small_block_size", type=int, default=8)
     parser.add_argument("--threshold", type=float, default=1.0)
-    parser.add_argument("--use_block_cache", action="store_true")
+    parser.add_argument(
+        "--use_block_cache",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+        help=(
+            "Whether to enable block cache. "
+            "Accepts true/false. "
+            "Also supports flag-only usage: --use_block_cache means true."
+        ),
+    )
 
     parser.add_argument("--top_p", type=float, default=0.95)
     parser.add_argument("--temperature", type=float, default=0.0)
@@ -560,6 +587,11 @@ def main():
     print("Dataset: mbpp")
     print(f"Num problems: {len(items)}")
     print(f"Output: {output_path}")
+    print(f"mask_id: {args.mask_id}")
+    print(f"threshold: {args.threshold}")
+    print(f"use_block_cache: {args.use_block_cache}")
+    print(f"top_p: {args.top_p}")
+    print(f"temperature: {args.temperature}")
 
     failed_extract = []
 
