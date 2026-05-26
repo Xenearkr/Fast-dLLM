@@ -5,6 +5,7 @@
 # bash eval_mbpp_fast.sh Fast
 # bash eval_mbpp_fast.sh Qwen2.5
 # bash eval_mbpp_fast.sh Qwen2.5_LoRA
+# bash eval_mbpp_fast.sh Qwen3
 
 set -euo pipefail
 
@@ -28,6 +29,11 @@ case "$METHOD" in
   
   Qwen2.5_LoRA)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
+    OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
+    ;;
+
+  Qwen3)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_234355"
     OUTPUT="evalplus_results/${METHOD}/mbpp_fast.jsonl"
     ;;
 

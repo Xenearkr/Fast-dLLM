@@ -4,10 +4,11 @@
 # bash eval_humaneval_fast.sh Fast
 # bash eval_humaneval_fast.sh Qwen2.5
 # bash eval_humaneval_fast.sh Qwen2.5_LoRA
+# bash eval_humaneval_fast.sh Qwen3
 
 set -euo pipefail
 
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=1
 cd /home/u-shengbf/Codes/Fast-dLLM/v2/
 mkdir -p evalplus_results
 
@@ -30,7 +31,7 @@ case "$METHOD" in
     ;;
 
   Qwen3)
-    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_222644" 
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_234355" #"/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_222644" 
     ;;
 
   *)

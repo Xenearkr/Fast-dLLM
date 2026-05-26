@@ -2,7 +2,69 @@
 
 ## 重要说明
 
-致管理员：Utopia分支所有前缀为public的分支都是稳定版本，可以merge进主分支。
+1. 致管理员：Utopia分支所有前缀为public的分支都是稳定版本，可以merge进主分支。
+
+2. 我已经无力写使用说明了-_-，有不懂的请直接问我。
+
+3. 我要休息一下-_-，有余力解决下面问题的请根据兴趣尽情施展才能！
+
+
+## TBD【汇总了目前能想到的所有待解决的重大问题】
+
+### 1. LoRA排查(训练部分)
+
+简而言之，LoRA目前效果欠佳（即使是和同样只训了1000 steps的full-tune版本对比）。我的结果如下：
+```
+# qwen2.5_1000_lora mbpp
+mbpp (base tests)
+pass@1: 0.048
+mbpp+ (base + extra tests)
+pass@1: 0.045
+
+# qwen2.5_1000_lora humaneval
+humaneval (base tests)
+pass@1: 0.000
+humaneval+ (base + extra tests)
+pass@1: 0.000
+```
+
+建议自己试一下LoRA训练+评测流程，我们希望区分这个效果是因为评测逻辑、接口不对或者训练不充分，还是LoRA方法本身不行。（个人现在逐渐倾向于后者）
+
+注意：请仔细阅读full-tune和lora的脚本和configs区别。现在的LoRA是需要后期merge的，而且使用了flash-attn；与此相对的，Full版本有些地方很不一样【特别提示：目前Qwen3基底不支持flash-attn，但是Qwen2.5支持flash-attn，需要实时调整configs！】
+
+### 2. 进一步改进、加速humaneval与mbpp评测
+
+现在评测逻辑正确，速度太慢。改进方向如下：
+
+1. 待添加：目前是单GPU，改成多GPU并行版本，缩短时间。
+
+2. 待添加：在评测过程中记录TPF，TPS等指标并报告？这样可以验证加速效果。
+
+3. 待测试：在generate部分，目前是没有使用use_block_cache，也没有关注是否调整了threshold，而这两者若使用正确可以大幅提升生成速度。
+
+### 3. Qwen3-8B适配和调整
+
+简而言之，Qwen3的底层适配已经基本完成了，且保存了一系列中间状态，成果可见v2/base_models/Model-Qwen-3-8B（主要看modeling.py, configuration.py）。【其中没有的.safetensors, merge.txt, vocab.json, tokenizer.json等直接从网上Qwen3对应仓库下载，对tokenizer.json在step 2有一些改装，如果不想麻烦请找我要】
+
+遗留问题如下：
+
+1. 没有添加flash-attn支持。
+
+2. 能跑通且loss曲线看起来正常，正在训练1000 steps版本。训练效果待检验。
+
+3. 使用v2/train_scripts/step10_process.py作了单样例generate实验，发现一些奇怪现象，限于篇幅和单样例随机性不作赘述，感兴趣可以自行实验。但暴露重要问题：Qwen3版本的generate中use_block_cache逻辑错误，使用这个生成则完全是胡言乱语（不用的话倒是比较正常，但是慢）。【待修复】
+
+
+### 4. 长期训练的适配与调参
+
+1. 从Llama-Nemotron中摘取一些math部分数据集？【注意：可能需要转换其格式，可以参考v2/utils中的部分代码】
+
+2. 支持断点续训？【好像已经支持了？只需要传进什么参数？】
+
+3. 精细化调整参数？确定所有的参数设置是否合理？
+
+
+---
 
 ## Progress 2025.05.25 更新说明
 
