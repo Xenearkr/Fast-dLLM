@@ -1,8 +1,10 @@
-# generate_mbpp_fast_examples.py
+# generate_mbpp_fast_samples.py
 import argparse
 import ast
 import json
+import os
 import re
+import time
 import types
 from collections import Counter
 from pathlib import Path
@@ -51,6 +53,37 @@ def import_generation_functions():
 def load_mbpp_tasks():
     from evalplus.data import get_mbpp_plus
     return get_mbpp_plus()
+
+
+def shard_items(items, shard_id: int, num_shards: int):
+    if num_shards < 1:
+        raise ValueError(f"num_shards must be >= 1, got {num_shards}")
+
+    if shard_id < 0 or shard_id >= num_shards:
+        raise ValueError(
+            f"shard_id must be in [0, {num_shards}), got {shard_id}"
+        )
+
+    return [
+        item
+        for idx, item in enumerate(items)
+        if idx % num_shards == shard_id
+    ]
+
+
+def atomic_write_json(path: Path, obj: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
+    tmp_path.write_text(
+        json.dumps(obj, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    os.replace(tmp_path, path)
+
+
+def safe_cuda_synchronize(device):
+    if torch.cuda.is_available() and getattr(device, "type", None) == "cuda":
+        torch.cuda.synchronize(device)
 
 
 def get_entry_point(problem: dict) -> str:
@@ -409,14 +442,22 @@ def fast_batch_generate(
         )
 
     completions = []
+    generated_token_counts = []
+    allocated_new_token_counts = []
+
     for batch_idx, prompt_len in enumerate(seq_lens):
         full_ids = generated[batch_idx]
-        new_ids = full_ids[prompt_len:]
-        new_ids = new_ids[new_ids != mask_id]
+        new_ids_raw = full_ids[prompt_len:]
+        allocated_new_token_counts.append(int(new_ids_raw.numel()))
+
+        # 去掉残留 mask token 后，按实际可 decode 的 completion token 计 TPS。
+        new_ids = new_ids_raw[new_ids_raw != mask_id]
+        generated_token_counts.append(int(new_ids.numel()))
+
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
         completions.append(text)
 
-    return completions
+    return completions, generated_token_counts, allocated_new_token_counts
 
 
 def fast_generate_single_fallback(
@@ -435,6 +476,8 @@ def fast_generate_single_fallback(
     temperature,
 ):
     completions = []
+    generated_token_counts = []
+    allocated_new_token_counts = []
 
     for prompt in prompts:
         inputs = tokenizer([prompt], return_tensors="pt").to(device)
@@ -454,12 +497,16 @@ def fast_generate_single_fallback(
                 temperature=temperature,
             )
 
-        new_ids = out[0][prompt_len:]
-        new_ids = new_ids[new_ids != mask_id]
+        new_ids_raw = out[0][prompt_len:]
+        allocated_new_token_counts.append(int(new_ids_raw.numel()))
+
+        new_ids = new_ids_raw[new_ids_raw != mask_id]
+        generated_token_counts.append(int(new_ids.numel()))
+
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
         completions.append(text)
 
-    return completions
+    return completions, generated_token_counts, allocated_new_token_counts
 
 
 def count_non_compilable(path: Path):
@@ -484,6 +531,69 @@ def count_non_compilable(path: Path):
         print(code)
 
     return len(bad), total
+
+
+def build_progress_payload(
+    *,
+    args,
+    status,
+    total_items,
+    shard_items_count,
+    done_batches,
+    total_batches,
+    done_samples,
+    generated_tokens,
+    allocated_new_tokens,
+    gen_time_sec,
+    wall_start_time,
+    message="",
+    failed_extract_count=0,
+    non_compilable_count=None,
+):
+    now = time.time()
+    wall_time_sec = max(0.0, now - wall_start_time)
+
+    tpf_sec = gen_time_sec / done_samples if done_samples > 0 else 0.0
+    tps = generated_tokens / gen_time_sec if gen_time_sec > 0 else 0.0
+    wall_tpf_sec = wall_time_sec / done_samples if done_samples > 0 else 0.0
+    wall_tps = generated_tokens / wall_time_sec if wall_time_sec > 0 else 0.0
+
+    return {
+        "status": status,
+        "message": message,
+        "pid": os.getpid(),
+        "shard_id": args.shard_id,
+        "num_shards": args.num_shards,
+        "total_items_before_shard": total_items,
+        "total_samples": shard_items_count,
+        "done_samples": done_samples,
+        "total_batches": total_batches,
+        "done_batches": done_batches,
+        "generated_tokens": generated_tokens,
+        "allocated_new_tokens": allocated_new_tokens,
+        "generation_time_sec": gen_time_sec,
+        "wall_time_sec": wall_time_sec,
+        "tpf_sec": tpf_sec,
+        "tps": tps,
+        "wall_tpf_sec": wall_tpf_sec,
+        "wall_tps": wall_tps,
+        "failed_extract_count": failed_extract_count,
+        "non_compilable_count": non_compilable_count,
+        "start_time": wall_start_time,
+        "last_update_time": now,
+        "model_path": args.model_path,
+        "output": args.output,
+        "batch_size": args.batch_size,
+        "max_new_tokens": args.max_new_tokens,
+        "mask_id": args.mask_id,
+        "bd_size": args.bd_size,
+        "small_block_size": args.small_block_size,
+        "threshold": args.threshold,
+        "use_block_cache": args.use_block_cache,
+        "top_p": args.top_p,
+        "temperature": args.temperature,
+        "dtype": args.dtype,
+    }
 
 
 def main():
@@ -525,6 +635,27 @@ def main():
         help="Use tokenizer chat template. Default False is usually better for EvalPlus-style MBPP generation.",
     )
 
+    parser.add_argument(
+        "--shard_id",
+        type=int,
+        default=0,
+        help="Shard id for distributed generation. Default 0.",
+    )
+
+    parser.add_argument(
+        "--num_shards",
+        type=int,
+        default=1,
+        help="Total number of shards for distributed generation. Default 1.",
+    )
+
+    parser.add_argument(
+        "--progress_file",
+        type=str,
+        default=None,
+        help="Path to a JSON progress/metrics file updated after each batch.",
+    )
+
     args = parser.parse_args()
 
     if args.max_new_tokens % args.bd_size != 0:
@@ -533,117 +664,262 @@ def main():
             f"Got max_new_tokens={args.max_new_tokens}, bd_size={args.bd_size}"
         )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    if args.dtype == "bf16":
-        torch_dtype = torch.bfloat16
-    elif args.dtype == "fp16":
-        torch_dtype = torch.float16
-    else:
-        torch_dtype = torch.float32
-
-    print("Loading tokenizer:", args.model_path)
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.model_path,
-        trust_remote_code=True,
-        local_files_only=args.local_files_only,
-    )
-
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    print("Loading model:", args.model_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_path,
-        trust_remote_code=True,
-        torch_dtype=torch_dtype,
-        local_files_only=args.local_files_only,
-    ).to(device)
-
-    model.eval()
-
-    generation_functions = import_generation_functions()
-
-    if generation_functions is not None:
-        print("Using generation_functions.Fast_dLLM_QwenForCausalLM.batch_sample")
-        model.mdm_sample = types.MethodType(
-            generation_functions.Fast_dLLM_QwenForCausalLM.batch_sample,
-            model,
-        )
-        generate_fn = fast_batch_generate
-    else:
-        print("generation_functions.py not found. Falling back to model.generate")
-        generate_fn = fast_generate_single_fallback
-
-    problems = load_mbpp_tasks()
-    items = list(problems.items())
-
-    if args.limit is not None:
-        items = items[: args.limit]
-
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print("Dataset: mbpp")
-    print(f"Num problems: {len(items)}")
-    print(f"Output: {output_path}")
-    print(f"mask_id: {args.mask_id}")
-    print(f"threshold: {args.threshold}")
-    print(f"use_block_cache: {args.use_block_cache}")
-    print(f"top_p: {args.top_p}")
-    print(f"temperature: {args.temperature}")
+    progress_path = Path(args.progress_file) if args.progress_file is not None else None
+    wall_start_time = time.time()
 
-    failed_extract = []
+    print("Loading MBPP tasks")
+    problems = load_mbpp_tasks()
+    all_items = list(problems.items())
 
-    with output_path.open("w", encoding="utf-8") as f:
-        for start in tqdm(range(0, len(items), args.batch_size), desc="Generating MBPP"):
-            batch_items = items[start : start + args.batch_size]
-            task_ids = [x[0] for x in batch_items]
-            problems_batch = [x[1] for x in batch_items]
+    if args.limit is not None:
+        all_items = all_items[: args.limit]
 
-            prompts = [
-                apply_chat_template(
-                    tokenizer,
-                    build_mbpp_prompt(problem),
-                    args.use_chat_template,
-                )
-                for problem in problems_batch
-            ]
+    total_items = len(all_items)
+    items = shard_items(
+        all_items,
+        shard_id=args.shard_id,
+        num_shards=args.num_shards,
+    )
 
-            completions = generate_fn(
-                model=model,
-                tokenizer=tokenizer,
-                prompts=prompts,
-                device=device,
-                mask_id=args.mask_id,
-                bd_size=args.bd_size,
-                small_block_size=args.small_block_size,
-                max_new_tokens=args.max_new_tokens,
-                threshold=args.threshold,
-                use_block_cache=args.use_block_cache,
-                top_p=args.top_p,
-                temperature=args.temperature,
+    total_batches = (len(items) + args.batch_size - 1) // args.batch_size
+
+    if progress_path is not None:
+        atomic_write_json(
+            progress_path,
+            build_progress_payload(
+                args=args,
+                status="loading_model",
+                total_items=total_items,
+                shard_items_count=len(items),
+                done_batches=0,
+                total_batches=total_batches,
+                done_samples=0,
+                generated_tokens=0,
+                allocated_new_tokens=0,
+                gen_time_sec=0.0,
+                wall_start_time=wall_start_time,
+                message="Loading tokenizer/model",
+            ),
+        )
+
+    try:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        if args.dtype == "bf16":
+            torch_dtype = torch.bfloat16
+        elif args.dtype == "fp16":
+            torch_dtype = torch.float16
+        else:
+            torch_dtype = torch.float32
+
+        print("Loading tokenizer:", args.model_path)
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.model_path,
+            trust_remote_code=True,
+            local_files_only=args.local_files_only,
+        )
+
+        if tokenizer.pad_token_id is None:
+            tokenizer.pad_token = tokenizer.eos_token
+
+        print("Loading model:", args.model_path)
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_path,
+            trust_remote_code=True,
+            torch_dtype=torch_dtype,
+            local_files_only=args.local_files_only,
+        ).to(device)
+
+        model.eval()
+
+        generation_functions = import_generation_functions()
+
+        if generation_functions is not None:
+            print("Using generation_functions.Fast_dLLM_QwenForCausalLM.batch_sample")
+            model.mdm_sample = types.MethodType(
+                generation_functions.Fast_dLLM_QwenForCausalLM.batch_sample,
+                model,
+            )
+            generate_fn = fast_batch_generate
+        else:
+            print("generation_functions.py not found. Falling back to model.generate")
+            generate_fn = fast_generate_single_fallback
+
+        print("Dataset: mbpp")
+        print(f"Total problems before shard: {total_items}")
+        print(f"Shard id: {args.shard_id}")
+        print(f"Num shards: {args.num_shards}")
+        print(f"Shard problems: {len(items)}")
+        print(f"Output: {output_path}")
+        print(f"mask_id: {args.mask_id}")
+        print(f"threshold: {args.threshold}")
+        print(f"use_block_cache: {args.use_block_cache}")
+        print(f"top_p: {args.top_p}")
+        print(f"temperature: {args.temperature}")
+
+        if progress_path is not None:
+            atomic_write_json(
+                progress_path,
+                build_progress_payload(
+                    args=args,
+                    status="running",
+                    total_items=total_items,
+                    shard_items_count=len(items),
+                    done_batches=0,
+                    total_batches=total_batches,
+                    done_samples=0,
+                    generated_tokens=0,
+                    allocated_new_tokens=0,
+                    gen_time_sec=0.0,
+                    wall_start_time=wall_start_time,
+                    message="Generating",
+                ),
             )
 
-            for task_id, problem, completion in zip(task_ids, problems_batch, completions):
-                solution, ok = clean_generated_mbpp_code(completion, problem)
+        failed_extract = []
+        done_batches = 0
+        done_samples = 0
+        total_generated_tokens = 0
+        total_allocated_new_tokens = 0
+        total_generation_time_sec = 0.0
 
-                if not ok:
-                    failed_extract.append(task_id)
+        tqdm_disable = progress_path is not None
 
-                row = {
-                    "task_id": task_id,
-                    "solution": solution,
-                }
-                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        with output_path.open("w", encoding="utf-8") as f:
+            for start in tqdm(
+                range(0, len(items), args.batch_size),
+                desc=f"Generating MBPP shard {args.shard_id}/{args.num_shards}",
+                disable=tqdm_disable,
+            ):
+                batch_items = items[start : start + args.batch_size]
+                task_ids = [x[0] for x in batch_items]
+                problems_batch = [x[1] for x in batch_items]
 
-    print(f"Done. Wrote {len(items)} samples to {output_path}")
+                prompts = [
+                    apply_chat_template(
+                        tokenizer,
+                        build_mbpp_prompt(problem),
+                        args.use_chat_template,
+                    )
+                    for problem in problems_batch
+                ]
 
-    if failed_extract:
-        print(f"Warning: {len(failed_extract)} samples used compilable stub fallback.")
-        print("First fallback task ids:", failed_extract[:20])
+                safe_cuda_synchronize(device)
+                gen_start = time.perf_counter()
 
-    count_non_compilable(output_path)
+                completions, token_counts, allocated_counts = generate_fn(
+                    model=model,
+                    tokenizer=tokenizer,
+                    prompts=prompts,
+                    device=device,
+                    mask_id=args.mask_id,
+                    bd_size=args.bd_size,
+                    small_block_size=args.small_block_size,
+                    max_new_tokens=args.max_new_tokens,
+                    threshold=args.threshold,
+                    use_block_cache=args.use_block_cache,
+                    top_p=args.top_p,
+                    temperature=args.temperature,
+                )
+
+                safe_cuda_synchronize(device)
+                gen_elapsed = time.perf_counter() - gen_start
+
+                for task_id, problem, completion in zip(task_ids, problems_batch, completions):
+                    solution, ok = clean_generated_mbpp_code(completion, problem)
+
+                    if not ok:
+                        failed_extract.append(task_id)
+
+                    row = {
+                        "task_id": task_id,
+                        "solution": solution,
+                    }
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+                f.flush()
+
+                done_batches += 1
+                done_samples += len(batch_items)
+                total_generated_tokens += int(sum(token_counts))
+                total_allocated_new_tokens += int(sum(allocated_counts))
+                total_generation_time_sec += gen_elapsed
+
+                if progress_path is not None:
+                    atomic_write_json(
+                        progress_path,
+                        build_progress_payload(
+                            args=args,
+                            status="running",
+                            total_items=total_items,
+                            shard_items_count=len(items),
+                            done_batches=done_batches,
+                            total_batches=total_batches,
+                            done_samples=done_samples,
+                            generated_tokens=total_generated_tokens,
+                            allocated_new_tokens=total_allocated_new_tokens,
+                            gen_time_sec=total_generation_time_sec,
+                            wall_start_time=wall_start_time,
+                            message="Generating",
+                            failed_extract_count=len(failed_extract),
+                        ),
+                    )
+
+        print(f"Done. Wrote {len(items)} samples to {output_path}")
+
+        if failed_extract:
+            print(f"Warning: {len(failed_extract)} samples used compilable stub fallback.")
+            print("First fallback task ids:", failed_extract[:20])
+
+        non_compilable_count, _ = count_non_compilable(output_path)
+
+        if progress_path is not None:
+            atomic_write_json(
+                progress_path,
+                build_progress_payload(
+                    args=args,
+                    status="completed",
+                    total_items=total_items,
+                    shard_items_count=len(items),
+                    done_batches=done_batches,
+                    total_batches=total_batches,
+                    done_samples=done_samples,
+                    generated_tokens=total_generated_tokens,
+                    allocated_new_tokens=total_allocated_new_tokens,
+                    gen_time_sec=total_generation_time_sec,
+                    wall_start_time=wall_start_time,
+                    message="Completed",
+                    failed_extract_count=len(failed_extract),
+                    non_compilable_count=non_compilable_count,
+                ),
+            )
+
+    except Exception as exc:
+        if progress_path is not None:
+            try:
+                atomic_write_json(
+                    progress_path,
+                    build_progress_payload(
+                        args=args,
+                        status="failed",
+                        total_items=total_items,
+                        shard_items_count=len(items),
+                        done_batches=0,
+                        total_batches=total_batches,
+                        done_samples=0,
+                        generated_tokens=0,
+                        allocated_new_tokens=0,
+                        gen_time_sec=0.0,
+                        wall_start_time=wall_start_time,
+                        message=f"{type(exc).__name__}: {exc}",
+                    ),
+                )
+            except Exception:
+                pass
+        raise
 
 
 if __name__ == "__main__":
