@@ -9,17 +9,6 @@ for ITEM in static past block_full block_replace; do
     --block-size 32 \
     --small-block-size 8
 done
-
-
-for ITEM in static past block_full block_replace; do
-  echo "===== $ITEM ====="
-  rm -rf ~/.cache/huggingface/modules/transformers_modules/Model-Qwen-3-8B
-  python tests_local/eval_qwen3_fast_generate.py \
-    --model-dir /home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B \
-    --only $ITEM \
-    --block-size 32 \
-    --small-block-size 8
-done
 """
 
 import argparse
