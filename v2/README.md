@@ -11,7 +11,7 @@
 
 ---
 
-## TBD【汇总了目前能想到的所有待解决的重大问题】
+## TBD【动态更新，汇总了目前能想到的所有待解决的重大问题】
 
 ### 1. LoRA排查(训练部分)
 
@@ -37,13 +37,7 @@ pass@1: 0.000
 
 ### 2. 进一步改进、加速humaneval与mbpp评测
 
-现在评测逻辑正确，速度太慢。改进方向如下：
-
-1. 待添加：目前是单GPU，改成多GPU并行版本，缩短时间。
-
-2. 待添加：在评测过程中记录TPF，TPS等指标并报告？这样可以验证加速效果。
-
-3. 待测试：在generate部分，目前是没有使用use_block_cache，也没有关注是否调整了threshold，而这两者若使用正确可以大幅提升生成速度。
+Done: 请使用eval_xxx_multigpu.sh进行评测，加速效果明显。
 
 ### 3. Qwen3-8B适配和调整
 
@@ -56,6 +50,7 @@ pass@1: 0.000
 2. 能跑通且loss曲线看起来正常，正在训练1000 steps版本。训练效果：
 
 ```
+# 注意：以下结果均设为threshold=1.0, use_block_cache=False, 可能与官方评测配置有出入
 # qwen3_1000 humaneval
 humaneval (base tests)
 pass@1: 0.427
@@ -85,7 +80,7 @@ mbpp+ (base + extra tests)
 pass@1: 0.418
 ```
 
-3. 使用v2/train_scripts/step10_process.py作了单样例generate实验，发现一些奇怪现象，限于篇幅和单样例随机性不作赘述，感兴趣可以自行实验。但暴露重要问题：Qwen3版本的generate中use_block_cache逻辑错误，使用这个生成则完全是胡言乱语（不用的话倒是比较正常，但是慢）。【待修复】
+3. 使用v2/train_scripts/step10_process.py作了单样例generate实验，发现一些奇怪现象，限于篇幅和单样例随机性不作赘述，感兴趣可以自行实验。但暴露重要问题：Qwen3版本的generate中use_block_cache逻辑错误，使用这个生成则完全是胡言乱语（不用的话倒是比较正常，但是慢）。【严重问题，请暂时不要使用 Qwen3 的use_block_cache】
 
 
 ### 4. 长期训练的适配与调参
