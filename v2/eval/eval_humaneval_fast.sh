@@ -24,8 +24,8 @@
 set -euo pipefail
 
 export CUDA_VISIBLE_DEVICES=1
-cd /home/u-shengbf/Codes/Fast-dLLM/v2/
-mkdir -p evalplus_results
+cd /home/u-shengbf/Codes/Fast-dLLM/v2/eval
+mkdir -p ../evalplus_results
 
 normalize_bool() {
   local value="${1,,}"
@@ -84,10 +84,10 @@ else
   MASK_ID=151665
 fi
 
-mkdir -p "evalplus_results/${METHOD}"
+mkdir -p "../evalplus_results/${METHOD}"
 
 # 建议把关键生成配置写入文件名，避免不同 threshold/cache/mask_id 的结果互相混淆。
-BASE_OUTPUT="evalplus_results/${METHOD}/humaneval_fast_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}.jsonl"
+BASE_OUTPUT="../evalplus_results/${METHOD}/humaneval_fast_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}.jsonl"
 OUTPUT="$BASE_OUTPUT"
 
 # 如果已有文件且用户选择重新生成，则新文件名加时间戳。

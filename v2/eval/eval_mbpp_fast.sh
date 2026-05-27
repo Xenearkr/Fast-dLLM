@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-cd /home/u-shengbf/Codes/Fast-dLLM/v2
+cd /home/u-shengbf/Codes/Fast-dLLM/v2/eval
 
 export CUDA_VISIBLE_DEVICES=3
 
@@ -85,10 +85,10 @@ else
   MASK_ID=151665
 fi
 
-mkdir -p "evalplus_results/${METHOD}"
+mkdir -p "../evalplus_results/${METHOD}"
 
 # 把关键生成配置写入文件名，避免不同 threshold/cache/mask_id 的结果互相覆盖。
-BASE_OUTPUT="evalplus_results/${METHOD}/mbpp_fast_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}.jsonl"
+BASE_OUTPUT="../evalplus_results/${METHOD}/mbpp_fast_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}.jsonl"
 OUTPUT="$BASE_OUTPUT"
 
 # 如果已有文件且选择重新生成，则本次输出文件名加时间戳。
@@ -131,7 +131,7 @@ evalplus.syncheck \
   --samples "$OUTPUT"
 
 echo "删除当前 METHOD 下旧 EvalPlus 结果缓存"
-rm -f "evalplus_results/${METHOD}"/*mbpp*eval_results*.jsonl
+rm -f "../evalplus_results/${METHOD}"/*mbpp*eval_results*.jsonl
 
 echo "开始 evaluate: $OUTPUT"
 evalplus.evaluate \

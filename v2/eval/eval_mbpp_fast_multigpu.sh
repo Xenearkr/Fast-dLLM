@@ -13,6 +13,7 @@
 # bash eval_mbpp_fast_multigpu.sh Qwen3 0.9 true false
 # bash eval_mbpp_fast_multigpu.sh Qwen3 0.9 true false 4
 # bash eval_mbpp_fast_multigpu.sh Fast 0.9 true true 2 20
+# bash eval_mbpp_fast_multigpu.sh Qwen2.5_LoRA
 #
 # 参数说明：
 # METHOD: Fast / Qwen2.5 / Qwen2.5_LoRA / Qwen3
@@ -27,7 +28,7 @@
 
 set -euo pipefail
 
-cd /home/u-shengbf/Codes/Fast-dLLM/v2
+cd /home/u-shengbf/Codes/Fast-dLLM/v2/eval
 
 normalize_bool() {
   local value="${1,,}"
@@ -156,14 +157,14 @@ fi
 GPUS=("${ALL_GPUS[@]:0:$NUM_GPUS}")
 NUM_SHARDS="$NUM_GPUS"
 
-mkdir -p "evalplus_results/${METHOD}"
+mkdir -p "../evalplus_results/${METHOD}"
 
 LIMIT_SUFFIX=""
 if [ -n "$LIMIT" ]; then
   LIMIT_SUFFIX="_limit${LIMIT}"
 fi
 
-BASE_OUTPUT="evalplus_results/${METHOD}/mbpp_fast_multigpu_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}_gpus${NUM_GPUS}${LIMIT_SUFFIX}.jsonl"
+BASE_OUTPUT="../evalplus_results/${METHOD}/mbpp_fast_multigpu_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}_gpus${NUM_GPUS}${LIMIT_SUFFIX}.jsonl"
 OUTPUT="$BASE_OUTPUT"
 
 # 如果已有文件且选择重新生成，则最终输出文件名加时间戳。

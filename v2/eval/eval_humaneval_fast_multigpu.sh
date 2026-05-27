@@ -25,8 +25,8 @@
 
 set -euo pipefail
 
-cd /home/u-shengbf/Codes/Fast-dLLM/v2/
-mkdir -p evalplus_results
+cd /home/u-shengbf/Codes/Fast-dLLM/v2/eval
+mkdir -p ../evalplus_results
 
 # -----------------------------
 # Global state for cleanup
@@ -267,14 +267,14 @@ fi
 GPUS=("${ALL_GPUS[@]:0:$NUM_GPUS}")
 NUM_SHARDS="$NUM_GPUS"
 
-mkdir -p "evalplus_results/${METHOD}"
+mkdir -p "../evalplus_results/${METHOD}"
 
 LIMIT_SUFFIX=""
 if [ -n "$LIMIT" ]; then
   LIMIT_SUFFIX="_limit${LIMIT}"
 fi
 
-BASE_OUTPUT="evalplus_results/${METHOD}/humaneval_fast_multigpu_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}_gpus${NUM_GPUS}${LIMIT_SUFFIX}.jsonl"
+BASE_OUTPUT="../evalplus_results/${METHOD}/humaneval_fast_multigpu_th${THRESHOLD}_cache${USE_BLOCK_CACHE}_mask${MASK_ID}_gpus${NUM_GPUS}${LIMIT_SUFFIX}.jsonl"
 OUTPUT="$BASE_OUTPUT"
 
 # 如果已有合并文件且选择重新生成，则最终输出文件名加时间戳，避免覆盖旧结果。

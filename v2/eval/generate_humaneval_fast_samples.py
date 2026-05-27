@@ -1,3 +1,5 @@
+import sys
+import os
 import argparse
 import json
 import time
@@ -26,6 +28,14 @@ def str2bool(value):
 
 
 def import_generation_functions():
+    # 获取当前文件所在目录的上一层
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    
+    # 将父目录添加到系统路径
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+        
     try:
         import generation_functions
         return generation_functions
