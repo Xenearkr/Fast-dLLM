@@ -12,7 +12,7 @@ cd "${PROJECT_ROOT}"
 # 3. 调整参数，比如用max-steps控制本轮迭代次数等
 
 # 断点续训方法：
-# RESUME_DIR=/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_202605xx_xxxxxx \
+# RESUME_DIR=/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260527_235410 \
 # bash train_scripts/finetune_a2d_v0.sh
 
 
@@ -76,11 +76,6 @@ else
     echo "No RESUME_DIR set, training from model_name_or_path"
 fi
 
-resume_arg=""
-if [ -n "${latest_checkpoint}" ]; then
-    resume_arg="--resume_from_checkpoint ${latest_checkpoint}"
-fi
-
 
 resume_arg=""
 if [ -n "${latest_checkpoint}" ]; then
@@ -123,13 +118,13 @@ cmd="deepspeed ${deepspeed_args} \
     --do_train \
     --ddp_timeout 72000 \
     --save_strategy steps \
-    --save_steps 500 \
+    --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --save_total_limit 2 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --max_steps 1000 "
+    --max_steps 5000 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]
@@ -185,4 +180,4 @@ EOF
 
 
 printf '%s\n' "$cmd"
-eval $cmd
+eval "$cmd"

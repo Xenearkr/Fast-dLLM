@@ -672,6 +672,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
         output_hidden_states=False,
         **kwargs
     ):
+        # 采样控制逻辑
         if max_new_tokens is None and max_length is None:
             raise ValueError("Either max_new_tokens or max_length must be specified")
         if max_new_tokens is None:
@@ -680,10 +681,11 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
         scores_list = [] if output_scores else None
         decoder_hidden_states = [] if output_hidden_states else None
         
+        # 计算要生成多少个block
         num_blocks = max_new_tokens // block_size
         original_input_length = input_ids.shape[1]
 
-        if input_ids.shape[1] > block_size:
+        if input_ids.shape[1] > block_size: # 如果 prompt 长度超过一个block，做一次prefill
             output = self.forward(
                 input_ids=input_ids[:, :(input_ids.shape[1] // block_size * block_size)], 
                 use_cache=True, 
@@ -697,12 +699,14 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
             if output_hidden_states and hasattr(output, 'hidden_states'):
                 decoder_hidden_states.append(output.hidden_states)
             
-            if input_ids.shape[1] % block_size == 0:
+            # 如果 prompt 长度刚好是 block size 的整数倍：用最后一个 logit 额外生成一个 next_token，这是为了配合论文中的 token-shift / next-token prediction 逻辑
+            if input_ids.shape[1] % block_size == 0: 
                 next_token = logits[:, -1:, :].argmax(dim=-1)
                 input_ids = torch.cat([input_ids, next_token], dim=1)
         else:
             past_key_values = None
 
+        # 当前block内部：切成多个small-block，逐段refine
         num_small_blocks = block_size // small_block_size
 
         for block_idx in range(num_blocks):
@@ -728,6 +732,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
                 mask_idx = (x_t[:, -block_size:] == mask_id)
                 
                 # Decode a complete block, update cache, and generate the next token
+                # 退出机制：没有mask
                 if mask_idx.sum() == 0:
                     output = self.forward(
                         input_ids=x_t[:, -block_size:], 
