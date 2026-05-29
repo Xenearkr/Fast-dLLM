@@ -94,21 +94,32 @@ def batch_sample(
 
     if min_len > block_size and min_len % block_size == 0:
         predict_sample_idx = (seq_len == min_len)
-        for sample_idx in predict_sample_idx.nonzero(as_tuple=True)[0]:
-            pos = min_len
-            if seq_len[sample_idx] <= pos < traj_lens[sample_idx]:
-                decode_count[sample_idx] += 1
-                trajectory[sample_idx, pos] = decode_count[sample_idx]
+        decode_count += predict_sample_idx.long()
+        trajectory[predict_sample_idx, min_len] = decode_count[predict_sample_idx]
 
-    def align_trajectory_to_sample(traj_row, sample_row):
+    def align_trajectory_to_sample(traj_row, sample_row, current_count):
+        """
+        将轨迹张量裁剪或填充至与样本等长。
+        如果轨迹长度不足，在尾部填充 current_count + 1
+        """
         sample_len = sample_row.shape[0]
+        
+        # 情况 1：如果轨迹长度已经大于等于样本长度，进行截断
         if traj_row.shape[0] >= sample_len:
             return traj_row[:sample_len].clone()
-        pad = torch.zeros(
-            sample_len - traj_row.shape[0],
+        
+        # 情况 2：如果轨迹长度不足，计算需要填充的长度
+        pad_len = sample_len - traj_row.shape[0]
+        
+        # 使用 torch.full 创建一个填充张量，其值全部为 current_count + 1
+        pad = torch.full(
+            (pad_len,),
+            fill_value=current_count + 1,
             device=traj_row.device,
             dtype=traj_row.dtype,
         )
+        
+        # 拼接并返回
         return torch.cat([traj_row, pad])
 
     def record_unmasks(traj, counts, cur_seq_len, cur_traj_lens, unmask_idx, abs_start):
@@ -225,7 +236,7 @@ def batch_sample(
                     original_idx = sample_indices[sample_idx].item()
                     finished_samples[original_idx] = x_t[sample_idx:sample_idx+1].clone().squeeze(dim=0)
                     finished_trajectories[original_idx] = align_trajectory_to_sample(
-                        trajectory[sample_idx], x_t[sample_idx]
+                        trajectory[sample_idx], x_t[sample_idx], decode_count[sample_idx].item()
                     )
             sample_indices = sample_indices[~finished_flag]
             input_ids = input_ids[~finished_flag]
@@ -247,7 +258,7 @@ def batch_sample(
             original_idx = sample_indices[sample_idx].item()
             finished_samples[original_idx] = x_t[sample_idx:sample_idx+1].clone().squeeze(dim=0)
             finished_trajectories[original_idx] = align_trajectory_to_sample(
-                trajectory[sample_idx], x_t[sample_idx]
+                trajectory[sample_idx], x_t[sample_idx], decode_count[sample_idx].item()
             )
 
     assert len(finished_samples) == batch_size
