@@ -96,18 +96,19 @@ def eval_block_diff_mask(q_idx, kv_idx, block_size=None):
     return block_q >= block_kv
 
 class Fast_dLLM_QwenMLP(nn.Module):
+    """ 作用：先把输入的隐藏状态升维，再经过非线性变换，最后降维回原来的 hidden size """
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.hidden_size = config.hidden_size
-        self.intermediate_size = config.intermediate_size
-        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
-        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
-        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
-        self.act_fn = ACT2FN[config.hidden_act]
+        self.hidden_size = config.hidden_size # 输入层/输出层的维度
+        self.intermediate_size = config.intermediate_size # 中间层的维度，通常比hidden_size大
+        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False) # 生成一个门控信号
+        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False) # 前投影
+        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False) # 后投影
+        self.act_fn = ACT2FN[config.hidden_act] # ACT2FN是一个字典，用于选择激活函数
 
     def forward(self, x):
-        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x)) # MLP(x) = down_proj( act_fn(gate_proj(x)) ⊙ up_proj(x) )
         return down_proj
 
 
@@ -256,23 +257,26 @@ class Fast_dLLM_QwenAttention(nn.Module):
         return attn_output
 
 @use_kernel_forward_from_hub("RMSNorm")
+# 装饰器：如果环境中有优化过的 RMSNorm kernel，就用高性能 kernel 替换 forward；否则保留 Python / PyTorch 实现。
 class Fast_dLLM_QwenRMSNorm(nn.Module):
+    """用于稳定 hidden states 的数值尺度：对输入的 hidden_states 做归一化，使每个 token 的隐藏向量具有稳定的尺度"""
     def __init__(self, hidden_size, eps=1e-6):
         """
         Fast_dLLM_QwenRMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.weight = nn.Parameter(torch.ones(hidden_size)) # 可学习缩放参数，形状为 [hidden_size]
         self.variance_epsilon = eps
 
     def forward(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(torch.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
-        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon) # 归一化核心步骤
+        return self.weight * hidden_states.to(input_dtype) # 转回原始dtype，并乘上self.weight
 
     def extra_repr(self):
+        # 用于打印模块时显示额外信息
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
