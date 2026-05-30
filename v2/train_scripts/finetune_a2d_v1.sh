@@ -1,13 +1,13 @@
 #!/bin/bash
 
 
-# LoRA版本
+# LoRA版本 bash /home/u-shengbf/Codes/Fast-dLLM/v2/train_scripts/finetune_a2d_v1.sh
 # 训练前确认如下事项：
 # 1. 模型加载路径、数据集加载路径
 # 2. output_dir的命名是否符合你的想法
 # 3. 调整参数，比如用max-steps控制本轮迭代次数等
 
-# 目前不支持断点续训（因为引入了timestamp，永远找不到原先output_dir）
+# 目前不支持断点续训（引入了timestamp，可能永远找不到原先output_dir？）
 
 
 cd /home/u-shengbf/Codes/Fast-dLLM/v2
@@ -18,7 +18,8 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
-model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
+model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
+# "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
 dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
@@ -94,7 +95,7 @@ cmd="deepspeed ${deepspeed_args} \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
-    --use_flash_attention 1 \
+    --use_flash_attention 0 \
     --gradient_checkpointing 1 \
     --use_lora true \
     --lora_r 8 \
@@ -104,12 +105,7 @@ cmd="deepspeed ${deepspeed_args} \
     --save_aggregated_lora false \
     --save_total_limit 3"
 
-# 改用 ZeRO-3 no offload
-# 新增：max_steps, save_strategy，先跑起来！[verify]
-# 补充：缓解动态分配尺寸导致的碎片问题
-# + flash_attn?
-# learning rate： 2e-5 -> 1e-5
-# gradient_accumulation_steps 1 -> 8
+
 
 # 可加：    --max_steps 1000 \
 # 由于alpaca训练集较小，可以进一步调整：--num_train_epochs 3 \

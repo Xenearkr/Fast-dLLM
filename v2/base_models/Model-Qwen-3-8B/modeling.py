@@ -823,6 +823,7 @@ class Fast_dLLM_Qwen3Attention(nn.Module):
                 key_states,
                 value_states,
                 attention_mask,
+                is_causal=False,
                 dropout=0.0 if not self.training else self.attention_dropout,
                 scaling=self.scaling,
                 sliding_window=self.sliding_window,
@@ -1488,6 +1489,11 @@ class Fast_dLLM_Qwen3ForCausalLM(Fast_dLLM_Qwen3PreTrainedModel, GenerationMixin
         eos_token_ids = self._normalize_eos_token_ids(eos_token_id=eos_token_id)
         pad_token_id = self._get_pad_token_id(pad_token_id=pad_token_id)
 
+        debug_generate = bool(kwargs.pop("debug_generate", False))
+        debug_tokenizer = kwargs.pop("debug_tokenizer", None)
+
+        debug_step = 0
+
         original_training_state = self.training
         self.eval()
 
@@ -1508,7 +1514,7 @@ class Fast_dLLM_Qwen3ForCausalLM(Fast_dLLM_Qwen3PreTrainedModel, GenerationMixin
 
         # Cache complete prompt blocks as clean prefix.
         full_prompt_blocks_len = (input_ids.shape[1] // block_size) * block_size
-        if full_prompt_blocks_len > 0 and input_ids.shape[1] > block_size:
+        if full_prompt_blocks_len > 0 and input_ids.shape[1] >= block_size:
             output = self.forward(
                 input_ids=input_ids[:, :full_prompt_blocks_len],
                 use_cache=True,
@@ -1643,6 +1649,85 @@ class Fast_dLLM_Qwen3ForCausalLM(Fast_dLLM_Qwen3PreTrainedModel, GenerationMixin
                             unmask_idx[rows[row_has_mask], max_prob_idx[row_has_mask]] = True
 
                         unmask_idx = unmask_idx & mask_slice
+
+                        if debug_generate:
+                            with torch.no_grad():
+                                # 只打印 batch 0，避免日志爆炸
+                                b = 0
+
+                                debug_abs_positions = (
+                                    torch.arange(small_start, small_end, device=device)
+                                    + (x_t.shape[1] - block_size)
+                                )
+
+                                debug_x1_ids = x_1[b].detach().cpu().tolist()
+                                debug_probs = selected_probs[b].detach().float().cpu().tolist()
+                                debug_mask_slice = mask_slice[b].detach().cpu().tolist()
+                                debug_unmask = unmask_idx[b].detach().cpu().tolist()
+                                debug_current_ids = current_block[b, small_start:small_end].detach().cpu().tolist()
+
+                                debug_unmask_positions = [
+                                    int(debug_abs_positions[i].item())
+                                    for i, flag in enumerate(debug_unmask)
+                                    if flag
+                                ]
+                                debug_unmask_token_ids = [
+                                    int(debug_x1_ids[i])
+                                    for i, flag in enumerate(debug_unmask)
+                                    if flag
+                                ]
+
+                                if debug_tokenizer is not None:
+                                    debug_x1_tokens = [
+                                        debug_tokenizer.convert_ids_to_tokens(int(t))
+                                        for t in debug_x1_ids
+                                    ]
+                                    debug_unmask_tokens = [
+                                        debug_tokenizer.convert_ids_to_tokens(int(t))
+                                        for t in debug_unmask_token_ids
+                                    ]
+                                    debug_current_tokens = [
+                                        debug_tokenizer.convert_ids_to_tokens(int(t))
+                                        for t in debug_current_ids
+                                    ]
+                                else:
+                                    debug_x1_tokens = None
+                                    debug_unmask_tokens = None
+                                    debug_current_tokens = None
+
+                                print(
+                                    "[GEN_DEBUG]",
+                                    {
+                                        "step": debug_step,
+                                        "use_block_cache": bool(use_block_cache),
+                                        "block_cache_mode": (
+                                            "replace"
+                                            if use_block_cache and block_past_key_values is not None
+                                            and not (current_block[:, small_start] == mask_id).any()
+                                            else "full_or_no_cache"
+                                        ),
+                                        "x_t_len": int(x_t.shape[1]),
+                                        "input_ids_len": int(input_ids.shape[1]),
+                                        "prompt_length": int(prompt_length),
+                                        "target_length": int(target_length),
+                                        "small_start": int(small_start),
+                                        "small_end": int(small_end),
+                                        "abs_positions": [int(x.item()) for x in debug_abs_positions],
+                                        "current_ids": debug_current_ids,
+                                        "current_tokens": debug_current_tokens,
+                                        "mask_slice": debug_mask_slice,
+                                        "x1_ids": debug_x1_ids,
+                                        "x1_tokens": debug_x1_tokens,
+                                        "selected_probs": debug_probs,
+                                        "unmask_idx": debug_unmask,
+                                        "unmask_abs_positions": debug_unmask_positions,
+                                        "unmask_token_ids": debug_unmask_token_ids,
+                                        "unmask_tokens": debug_unmask_tokens,
+                                        "finished": finished.detach().cpu().tolist(),
+                                    },
+                                    flush=True,
+                                )
+                                debug_step += 1
 
                         if unmask_idx.any():
                             current_block = x_t[:, -block_size:].clone()

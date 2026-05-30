@@ -96,18 +96,19 @@ def eval_block_diff_mask(q_idx, kv_idx, block_size=None):
     return block_q >= block_kv
 
 class Fast_dLLM_QwenMLP(nn.Module):
+    """ 作用：先把输入的隐藏状态升维，再经过非线性变换，最后降维回原来的 hidden size """
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.hidden_size = config.hidden_size
-        self.intermediate_size = config.intermediate_size
-        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
-        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
-        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
-        self.act_fn = ACT2FN[config.hidden_act]
+        self.hidden_size = config.hidden_size # 输入层/输出层的维度
+        self.intermediate_size = config.intermediate_size # 中间层的维度，通常比hidden_size大
+        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False) # 生成一个门控信号
+        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False) # 前投影
+        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False) # 后投影
+        self.act_fn = ACT2FN[config.hidden_act] # ACT2FN是一个字典，用于选择激活函数
 
     def forward(self, x):
-        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x)) # MLP(x) = down_proj( act_fn(gate_proj(x)) ⊙ up_proj(x) )
         return down_proj
 
 
@@ -256,23 +257,26 @@ class Fast_dLLM_QwenAttention(nn.Module):
         return attn_output
 
 @use_kernel_forward_from_hub("RMSNorm")
+# 装饰器：如果环境中有优化过的 RMSNorm kernel，就用高性能 kernel 替换 forward；否则保留 Python / PyTorch 实现。
 class Fast_dLLM_QwenRMSNorm(nn.Module):
+    """用于稳定 hidden states 的数值尺度：对输入的 hidden_states 做归一化，使每个 token 的隐藏向量具有稳定的尺度"""
     def __init__(self, hidden_size, eps=1e-6):
         """
         Fast_dLLM_QwenRMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.weight = nn.Parameter(torch.ones(hidden_size)) # 可学习缩放参数，形状为 [hidden_size]
         self.variance_epsilon = eps
 
     def forward(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(torch.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
-        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon) # 归一化核心步骤
+        return self.weight * hidden_states.to(input_dtype) # 转回原始dtype，并乘上self.weight
 
     def extra_repr(self):
+        # 用于打印模块时显示额外信息
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
@@ -672,6 +676,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
         output_hidden_states=False,
         **kwargs
     ):
+        # 采样控制逻辑
         if max_new_tokens is None and max_length is None:
             raise ValueError("Either max_new_tokens or max_length must be specified")
         if max_new_tokens is None:
@@ -680,10 +685,11 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
         scores_list = [] if output_scores else None
         decoder_hidden_states = [] if output_hidden_states else None
         
+        # 计算要生成多少个block
         num_blocks = max_new_tokens // block_size
         original_input_length = input_ids.shape[1]
 
-        if input_ids.shape[1] > block_size:
+        if input_ids.shape[1] > block_size: # 如果 prompt 长度超过一个block，做一次prefill
             output = self.forward(
                 input_ids=input_ids[:, :(input_ids.shape[1] // block_size * block_size)], 
                 use_cache=True, 
@@ -697,12 +703,14 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
             if output_hidden_states and hasattr(output, 'hidden_states'):
                 decoder_hidden_states.append(output.hidden_states)
             
-            if input_ids.shape[1] % block_size == 0:
+            # 如果 prompt 长度刚好是 block size 的整数倍：用最后一个 logit 额外生成一个 next_token，这是为了配合论文中的 token-shift / next-token prediction 逻辑
+            if input_ids.shape[1] % block_size == 0: 
                 next_token = logits[:, -1:, :].argmax(dim=-1)
                 input_ids = torch.cat([input_ids, next_token], dim=1)
         else:
             past_key_values = None
 
+        # 当前block内部：切成多个small-block，逐段refine
         num_small_blocks = block_size // small_block_size
 
         for block_idx in range(num_blocks):
@@ -728,6 +736,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
                 mask_idx = (x_t[:, -block_size:] == mask_id)
                 
                 # Decode a complete block, update cache, and generate the next token
+                # 退出机制：没有mask
                 if mask_idx.sum() == 0:
                     output = self.forward(
                         input_ids=x_t[:, -block_size:], 

@@ -227,9 +227,9 @@ class Qwen2Attention(nn.Module):
     def forward(
         self,
         hidden_states: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        past_key_value: Optional[Cache] = None,
+        attention_mask: Optional[torch.Tensor] = None, # 控制哪些位置可以被看见
+        position_ids: Optional[torch.LongTensor] = None, # 提供RoPE使用的位置编号
+        past_key_value: Optional[Cache] = None, # 推理时保存历史K/V的cache
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[torch.LongTensor] = None,
