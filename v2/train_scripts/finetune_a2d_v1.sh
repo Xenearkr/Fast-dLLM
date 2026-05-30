@@ -1,5 +1,8 @@
 #!/bin/bash
+set -euo pipefail
 
+PROJECT_ROOT="/home/u-shengbf/Codes/Fast-dLLM/v2"
+cd "${PROJECT_ROOT}"
 
 # LoRA版本 bash /home/u-shengbf/Codes/Fast-dLLM/v2/train_scripts/finetune_a2d_v1.sh
 # 训练前确认如下事项：
@@ -9,8 +12,6 @@
 
 # 目前不支持断点续训（引入了timestamp，可能永远找不到原先output_dir？）
 
-
-cd /home/u-shengbf/Codes/Fast-dLLM/v2
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 # 尝试：缓解动态分配尺寸导致的碎片问题
@@ -25,30 +26,49 @@ model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-
 dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
 
 timestamp=$(date +"%Y%m%d_%H%M%S")
-output_dir="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_${timestamp}" # 引入时间戳命名
+resume_from_dir="${RESUME_DIR:-}"
+
+if [ -n "${resume_from_dir}" ]; then
+    output_dir="$(realpath "${resume_from_dir}")"
+    echo "Resume mode enabled. output_dir=${output_dir}"
+else
+    output_dir="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_${timestamp}"
+    echo "New training mode. output_dir=${output_dir}"
+fi
+
+run_config_dir="${output_dir}/run_config"
+mkdir -p "${run_config_dir}"
+
+# 备份代码与配置（注意将全量配置名改为你的 lora 配置名）
+current_script="$(realpath "${BASH_SOURCE[0]}")"
+cp -av "${current_script}" "${run_config_dir}/$(basename "${current_script}")"
+cp -av train_scripts/finetune.py "${run_config_dir}/finetune.py"
+cp -av configs/ds_config_zero3_lora.json "${run_config_dir}/ds_config_zero3_lora.json"
 
 deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11001" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
 
 # Use system/conda CUDA; if CUDA_HOME is unset, infer from nvcc on PATH.
-if [ -z "${CUDA_HOME}" ] && command -v nvcc >/dev/null 2>&1; then
+if [ -z "${CUDA_HOME:-}" ] && command -v nvcc >/dev/null 2>&1; then
   export CUDA_HOME="$(dirname "$(dirname "$(command -v nvcc)")")"
 fi
 
 trust_remote_code=1
 
 latest_checkpoint=""
-if [ -d "${output_dir}" ]; then
-    latest_checkpoint=$(find "${output_dir}" -name "checkpoint-*" -type d | sort -V | tail -1)
+
+if [ -n "${resume_from_dir}" ]; then
+    # 加上 -maxdepth 1 更加精准
+    latest_checkpoint=$(find "${output_dir}" -maxdepth 1 -name "checkpoint-*" -type d | sort -V | tail -1)
+
     if [ -n "${latest_checkpoint}" ]; then
         echo "Found latest checkpoint: ${latest_checkpoint}"
     else
-        echo "No checkpoint found in ${output_dir}"
-        latest_checkpoint=""
+        echo "ERROR: RESUME_DIR was set, but no checkpoint-* found in ${output_dir}"
+        exit 1
     fi
 else
-    echo "Output directory ${output_dir} does not exist, training from scratch"
-    latest_checkpoint=""
+    echo "No RESUME_DIR set, training from model_name_or_path"
 fi
 
 resume_arg=""
@@ -73,10 +93,10 @@ cmd="deepspeed ${deepspeed_args} \
     --trust_remote_code ${trust_remote_code} \
     --dataset_path ${dataset_path} \
     --output_dir ${output_dir} \
+    --overwrite_output_dir \
     ${resume_arg} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
-    --max_steps 1000 \
     --learning_rate 1e-4 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
@@ -92,17 +112,18 @@ cmd="deepspeed ${deepspeed_args} \
     --do_train \
     --ddp_timeout 72000 \
     --save_strategy steps \
-    --save_steps 1000 \
+    --save_steps 500 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
+    --max_steps 20 \
     --use_lora true \
-    --lora_r 8 \
+    --lora_r 16 \
     --lora_alpha 32 \
-    --lora_dropout 0.1 \
+    --lora_dropout 0.05 \
     --lora_target_modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
-    --save_aggregated_lora false \
+    --save_aggregated_lora true \
     --save_total_limit 3"
 
 
@@ -111,5 +132,47 @@ cmd="deepspeed ${deepspeed_args} \
 # 由于alpaca训练集较小，可以进一步调整：--num_train_epochs 3 \
 
 
-echo $cmd
-eval $cmd
+cat > "${run_config_dir}/launch_cmd.sh" <<EOF
+#!/usr/bin/env bash
+set -e
+
+cd "${PROJECT_ROOT}"
+
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES}"
+export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF}"
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF}"
+export CUDA_HOME="${CUDA_HOME:-}"
+
+${cmd}
+EOF
+
+chmod +x "${run_config_dir}/launch_cmd.sh"
+
+
+cat > "${run_config_dir}/run_meta.txt" <<EOF
+timestamp=${timestamp}
+project_root=${PROJECT_ROOT}
+output_dir=${output_dir}
+
+model_name_or_path=${model_name_or_path}
+actual_model_path=${actual_model_path}
+
+dataset_path=${dataset_path}
+actual_dataset_path=${actual_dataset_path}
+
+conversation_template=${conversation_template}
+
+CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}
+PYTORCH_ALLOC_CONF=${PYTORCH_ALLOC_CONF}
+PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF}
+CUDA_HOME=${CUDA_HOME:-}
+
+deepspeed_args=${deepspeed_args}
+resume_from_dir=${resume_from_dir}
+latest_checkpoint=${latest_checkpoint}
+resume_arg=${resume_arg}
+EOF
+
+
+printf '%s\n' "$cmd"
+eval "$cmd"

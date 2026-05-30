@@ -14,6 +14,10 @@
 # bash eval_mbpp_fast_multigpu.sh Qwen3 0.9 true false 4
 # bash eval_mbpp_fast_multigpu.sh Fast 0.9 true true 2 20
 # bash eval_mbpp_fast_multigpu.sh Qwen2.5_LoRA
+# 
+# bash eval_mbpp_fast_multigpu.sh Qwen3_Ori
+# bash eval_mbpp_fast_multigpu.sh Qwen3_Large
+# bash eval_mbpp_fast_multigpu.sh Qwen3_Large 0.9 false
 #
 # 参数说明：
 # METHOD: Fast / Qwen2.5 / Qwen2.5_LoRA / Qwen3
@@ -105,13 +109,21 @@ case "$METHOD" in
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
     ;;
 
+  Qwen3_Ori)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
+    ;;
+
   Qwen3)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_234355"
     ;;
 
+  Qwen3_Large)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260527_235410"
+    ;;
+
   *)
     echo "Unknown METHOD: ${METHOD}" >&2
-    echo "Supported METHOD values: Fast, Qwen2.5, Qwen2.5_LoRA, Qwen3" >&2
+    echo "Supported METHOD values: Fast, Qwen2.5, Qwen2.5_LoRA, Qwen3_Ori, Qwen3, Qwen3_Large" >&2
     exit 1
     ;;
 esac

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-
 # 使用说明：（基于全量微调，LoRA待确定）
 # finetune脚本生成的文件不能直接用作模型权重，需要进一步转换
 # - 修改output_model_dir为需要转换的模型文件夹位置（通常在output_models里面，带有时间戳）
@@ -13,7 +12,7 @@
 
 set -euo pipefail
 
-output_model_dir="${HOME}/Codes/Fast-dLLM/v2/output_models/finetune_full_20260525_222644" # 按需修改
+output_model_dir="${HOME}/Codes/Fast-dLLM/v2/output_models/finetune_full_20260527_235410" # 按需修改
 convert_script="${HOME}/Codes/Fast-dLLM/v2/train_scripts/convert_inplace_to_safetensors.py"
 
 delete_bin="true"

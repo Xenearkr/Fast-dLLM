@@ -1,71 +1,75 @@
-# 用于检验convert转换结果正确性
 import json
 from pathlib import Path
 
-path = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/train_conversation")
+# 数据集所在目录
+DIR_PATH = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use")
 
-max_preview = 3
-total_attempted = 0  # 尝试总数，用来强制退出，防止死循环
+# 获取前 10 个 json 文件
+json_files = sorted(DIR_PATH.glob("train-*.json"))[:10]
 
-print("正在精准流式解析前几条数据...")
+if not json_files:
+    print(f"[错误] 未在路径下找到 train-*.json 文件，请检查路径：\n{DIR_PATH}")
+    exit()
 
-inside_instance = False
-instance_lines = []
-brace_depth = 0  # 大括号嵌套深度计数器
+print(f"正在深度分析前 {len(json_files)} 个文件的回答（assistant）长度...\n")
 
-with path.open("r", encoding="utf-8") as f:
-    for line_num, line in enumerate(f, 1):
-        # 提取外层的 type
-        if '"type":' in line and not inside_instance:
-            try:
-                print("type:", line.split('"type":')[1].strip().strip('",'))
-            except Exception:
-                pass
+# 用于全局统计
+global_lengths = []
 
-        # 发现新实例的特征行
-        if '"conversation_id":' in line and not inside_instance:
-            inside_instance = True
-            instance_lines = ["{ \n", line]  # 手动补上左大括号，并加入当前行
-            # 初始深度为 1，并加上当前行可能包含的括号
-            brace_depth = 1 + line.count("{") - line.count("}")
-            continue
+# 打印表格表头
+print(f"{'文件名':<18} | {'总样本数':<8} | {'平均长度(字)':<10} | {'最大长度':<8} | {'最小长度':<8}")
+print("-" * 65)
 
-        if inside_instance:
-            instance_lines.append(line)
-            # 核心：根据当前行的大括号数量动态增减深度
-            brace_depth += line.count("{")
-            brace_depth -= line.count("}")
+for file_path in json_files:
+    try:
+        # 核心：整包读取单行大 JSON，效率最高
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.loads(f.read())
+        
+        instances = data.get("instances", [])
+        file_lengths = []
+        
+        # 提取当前文件中所有 assistant 的回答长度
+        for inst in instances:
+            for msg in inst.get("messages", []):
+                if msg.get("role") == "assistant":
+                    content = msg.get("content", "")
+                    file_lengths.append(len(content))
+        
+        if file_lengths:
+            avg_len = sum(file_lengths) / len(file_lengths)
+            max_len = max(file_lengths)
+            min_len = min(file_lengths)
+            global_lengths.extend(file_lengths)
+            
+            print(f"{file_path.name:<18} | {len(file_lengths):<8} | {int(avg_len):<12} | {max_len:<8} | {min_len:<8}")
+        else:
+            print(f"{file_path.name:<18} | {len(instances):<8} | 0            | 0        | 0")
+            
+    except Exception as e:
+        print(f"读取文件 {file_path.name} 失败，错误原因: {e}")
 
-            # 当深度降回 0 时，说明这才是真正属于该 instance 自身关闭的大括号
-            if brace_depth <= 0:
-                inside_instance = False
-                total_attempted += 1
-                
-                # 组合成完整的 json 字符串
-                full_json_str = "".join(instance_lines).strip()
-                if full_json_str.endswith(","):
-                    full_json_str = full_json_str[:-1]
-                
-                try:
-                    ex = json.loads(full_json_str)
-                    print("=" * 80)
-                    print(f"【成功流式解析第 {total_attempted} 个样本】")
-                    print("conversation_id:", ex.get("conversation_id"))
-                    print("system:", ex.get("system", "")[:100])
-                    # 只打印前 2 轮对话防止刷屏
-                    for m in ex.get("messages", [])[:2]: 
-                        print(f"  [{m['role']}]: {m['content'][:150]}...")
-                except json.JSONDecodeError:
-                    print(f"\n[错误] 第 {line_num} 行附近截取的块解析失败。")
-                    print("截取的文本前 200 字符：\n", full_json_str[:200])
-                    print("截取的文本后 100 字符：\n", full_json_str[-100:])
-                
-                # 重置状态
-                instance_lines = []
-                brace_depth = 0
-                
-                # 保险栓：管它成功还是失败，达到指定次数必须断开，绝不连读
-                if total_attempted >= max_preview:
-                    break
-
-print("\n预览结束。")
+# 输出全局区间分布统计
+if global_lengths:
+    total_count = len(global_lengths)
+    print("\n" + "=" * 60)
+    print("📊 【前 10 个文件全量长度分布报告】")
+    print("=" * 60)
+    print(f" 🔹 总计分析样本数 : {total_count} 条")
+    print(f" 🔹 全局平均长度   : {int(sum(global_lengths) / total_count)} 字符")
+    print(f" 🔹 全局最大长度   : {max(global_lengths)} 字符")
+    print(f" 🔹 全局最小长度   : {min(global_lengths)} 字符")
+    print("-" * 60)
+    
+    # 区间递进统计
+    bin_1k = sum(1 for l in global_lengths if l <= 1000)
+    bin_5k = sum(1 for l in global_lengths if 1000 < l <= 5000)
+    bin_10k = sum(1 for l in global_lengths if 5000 < l <= 10000)
+    bin_huge = sum(1 for l in global_lengths if l > 10000)
+    
+    print(" 💡 长度区间详细占比：")
+    print(f"   - 短文本 (<= 1k 字符)     : {bin_1k:<6} 条 ({bin_1k / total_count * 100:.2f}%)")
+    print(f"   - 中等文本 (1k ~ 5k 字符)  : {bin_5k:<6} 条 ({bin_5k / total_count * 100:.2f}%)")
+    print(f"   - 长文本 (5k ~ 10k 字符)   : {bin_10k:<6} 条 ({bin_10k / total_count * 100:.2f}%)")
+    print(f"   - 超长文本 (> 10k 字符)    : {bin_huge:<6} 条 ({bin_huge / total_count * 100:.2f}%)")
+    print("=" * 60)
