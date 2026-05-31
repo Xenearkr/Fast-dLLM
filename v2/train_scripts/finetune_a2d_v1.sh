@@ -19,7 +19,7 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
-model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
+model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
@@ -97,7 +97,7 @@ cmd="deepspeed ${deepspeed_args} \
     ${resume_arg} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
-    --learning_rate 1e-4 \
+    --learning_rate 3e-5 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
     --disable_group_texts 0 \
@@ -111,19 +111,19 @@ cmd="deepspeed ${deepspeed_args} \
     --logging_steps 1 \
     --do_train \
     --ddp_timeout 72000 \
-    --save_strategy steps \
-    --save_steps 500 \
+    --save_strategy no \
+    --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --max_steps 20 \
+    --max_steps 1000 \
     --use_lora true \
     --lora_r 16 \
     --lora_alpha 32 \
     --lora_dropout 0.05 \
     --lora_target_modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
-    --save_aggregated_lora true \
+    --save_aggregated_lora false \
     --save_total_limit 3"
 
 

@@ -8,7 +8,7 @@ from peft import PeftModel
 
 # 请慎重确认此处配置
 base_model_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
-adapter_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260526_174537/checkpoint-1000/adapter_model"
+adapter_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260526_174537"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260524_172813/checkpoint-1000/adapter_model"
 merged_output_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_merged_lora_20260526_174537"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
