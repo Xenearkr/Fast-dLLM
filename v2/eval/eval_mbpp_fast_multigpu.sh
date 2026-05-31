@@ -18,6 +18,7 @@
 # bash eval_mbpp_fast_multigpu.sh Qwen3_Ori
 # bash eval_mbpp_fast_multigpu.sh Qwen3_Large
 # bash eval_mbpp_fast_multigpu.sh Qwen3_Large 0.9 false
+# bash eval_mbpp_fast_multigpu.sh Qwen3_LoRA
 #
 # 参数说明：
 # METHOD: Fast / Qwen2.5 / Qwen2.5_LoRA / Qwen3
@@ -119,6 +120,10 @@ case "$METHOD" in
 
   Qwen3_Large)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260527_235410"
+    ;;
+
+  Qwen3_LoRA)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260531_153755"
     ;;
 
   *)

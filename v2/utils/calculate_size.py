@@ -1,68 +1,53 @@
-# 取2000估算
 import json
 import time
 from pathlib import Path
 from transformers import AutoTokenizer
 
+# ================= 配置参数 =================
+# 预处理后的数据目录（use 文件夹）
+DATA_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/clear")
+# Tokenizer 路径
+TOKENIZER_PATH = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
 
-INPUT_PATH = Path(
-    "/home/u-shengbf/Codes/Fast-dLLM/v2/data/"
-    "Llama-Nemotron-code-v1.1/SFT/code/code_v1.1.jsonl"
-)
-
-# 改成你本地的 Qwen / Fast tokenizer 目录
-TOKENIZER_PATH = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
-
-TOTAL_EXAMPLES = 492_606
-
-# 先不要取太大，1000/2000 足够估一个量级
-MAX_EXAMPLES = 2000
-
-# 批量 tokenize，越大越快但越吃内存
+# 采样数量（用于估算）
+MAX_EXAMPLES = 20000
+# 批处理大小
 BATCH_SIZE = 32
+# 是否对单个回复截断（防止过长拖慢速度），None 表示不截断
+MAX_CHARS_PER_RESPONSE = None
+# ===========================================
 
-# 防止极端超长样本拖死估算。
-# 设为 None 表示不截断文本字符。
-# 如果还是慢，可以设成 20000 或 50000。
-MAX_CHARS_PER_EXAMPLE = None
+def get_all_processed_files(data_dir: Path, suffix: str = "-processed.json"):
+    """返回所有预处理后的 JSON 文件列表（按文件名排序）"""
+    return sorted(data_dir.glob(f"*{suffix}"))
 
+def count_total_samples(data_dir: Path, suffix: str = "-processed.json") -> int:
+    """统计所有预处理文件中的样本总数（每个文件中的 instances 数量之和）"""
+    total = 0
+    for file_path in get_all_processed_files(data_dir, suffix):
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        total += len(data.get("instances", []))
+    return total
 
-def extract_text(ex):
-    parts = []
+def extract_assistant_response(instance: dict) -> str:
+    """
+    从单个样本中提取最后一条 assistant 消息的 content。
+    预处理后的样本中，assistant 消息已经是截取好的 ```python 代码块（且以 ``` 结尾）。
+    """
+    messages = instance.get("messages", [])
+    # 倒序查找最后一条 assistant 消息
+    for msg in reversed(messages):
+        if msg.get("role") == "assistant":
+            content = msg.get("content", "")
+            if MAX_CHARS_PER_RESPONSE is not None:
+                content = content[:MAX_CHARS_PER_RESPONSE]
+            return content
+    return ""  # 理论上每个保留的样本都有 assistant，但防御性返回空字符串
 
-    system_prompt = ex.get("system_prompt")
-    if system_prompt:
-        parts.append(str(system_prompt))
-
-    input_field = ex.get("input", "")
-
-    if isinstance(input_field, str):
-        parts.append(input_field)
-
-    elif isinstance(input_field, list):
-        for m in input_field:
-            if isinstance(m, dict):
-                content = m.get("content", "")
-                if content:
-                    parts.append(str(content))
-
-    else:
-        parts.append(str(input_field))
-
-    output = ex.get("output", "")
-    if output:
-        parts.append(str(output))
-
-    text = "\n".join(parts)
-
-    if MAX_CHARS_PER_EXAMPLE is not None:
-        text = text[:MAX_CHARS_PER_EXAMPLE]
-
-    return text
-
-
-def tokenize_batch(tok, texts):
-    encoded = tok(
+def tokenize_batch(tokenizer, texts):
+    """批量 tokenize，返回每个文本的 token 长度列表"""
+    encoded = tokenizer(
         texts,
         add_special_tokens=False,
         padding=False,
@@ -70,104 +55,102 @@ def tokenize_batch(tok, texts):
     )
     return [len(ids) for ids in encoded["input_ids"]]
 
-
 def main():
-    assert INPUT_PATH.exists(), f"Input file not found: {INPUT_PATH}"
+    print(f"数据目录: {DATA_DIR}")
+    print(f"Tokenizer 路径: {TOKENIZER_PATH}")
 
-    print("Loading tokenizer...")
+    # 1. 统计总样本数
+    print("正在统计总样本数...")
+    total_samples = count_total_samples(DATA_DIR)
+    print(f"总样本数: {total_samples}")
+
+    if total_samples == 0:
+        print("错误：没有找到任何样本，请检查预处理是否完成。")
+        return
+
+    # 2. 加载 tokenizer
+    print("加载 tokenizer...")
     t0 = time.time()
-
-    tok = AutoTokenizer.from_pretrained(
+    tokenizer = AutoTokenizer.from_pretrained(
         TOKENIZER_PATH,
         trust_remote_code=True,
         use_fast=True,
         local_files_only=True,
     )
+    print(f"Tokenizer 加载完成，耗时 {time.time()-t0:.2f}s")
+    print(f"Tokenizer 类型: {type(tokenizer)}")
 
-    print(f"Tokenizer loaded in {time.time() - t0:.2f}s")
-    print("Tokenizer class:", type(tok))
-    print("Input:", INPUT_PATH)
-    print("MAX_EXAMPLES:", MAX_EXAMPLES)
-    print("BATCH_SIZE:", BATCH_SIZE)
+    # 3. 逐文件读取，收集样本回复并批量 tokenize
+    processed_files = get_all_processed_files(DATA_DIR)
+    print(f"找到 {len(processed_files)} 个预处理文件，开始采样（目标 {MAX_EXAMPLES} 个样本）...\n")
 
     total_tokens = 0
     total_chars = 0
     count = 0
-    skipped = 0
+    batch_texts = []
+    start_time = time.time()
+    last_report_time = start_time
 
-    batch = []
-
-    t_start = time.time()
-    t_last = time.time()
-
-    with INPUT_PATH.open("r", encoding="utf-8") as f:
-        for line_no, line in enumerate(f, start=1):
+    for file_path in processed_files:
+        if count >= MAX_EXAMPLES:
+            break
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        instances = data.get("instances", [])
+        for inst in instances:
             if count >= MAX_EXAMPLES:
                 break
-
-            line = line.strip()
-            if not line:
+            response = extract_assistant_response(inst)
+            if not response:
                 continue
-
-            try:
-                ex = json.loads(line)
-            except json.JSONDecodeError:
-                skipped += 1
-                continue
-
-            text = extract_text(ex)
-            if not text:
-                skipped += 1
-                continue
-
-            batch.append(text)
-            total_chars += len(text)
-
-            if len(batch) >= BATCH_SIZE:
-                lens = tokenize_batch(tok, batch)
+            batch_texts.append(response)
+            total_chars += len(response)
+            count += 1
+            # 达到 batch size 或 达到最大样本数时进行 tokenize
+            if len(batch_texts) >= BATCH_SIZE or count >= MAX_EXAMPLES:
+                lens = tokenize_batch(tokenizer, batch_texts)
                 total_tokens += sum(lens)
-                count += len(batch)
-                batch = []
-
+                batch_texts = []
+                # 进度报告
                 now = time.time()
-                if now - t_last >= 5:
-                    avg_tok = total_tokens / max(count, 1)
-                    avg_chars = total_chars / max(count, 1)
-                    est_total = avg_tok * TOTAL_EXAMPLES
+                if now - last_report_time >= 5 or count >= MAX_EXAMPLES:
+                    avg_tok = total_tokens / count if count > 0 else 0
+                    avg_char = total_chars / count if count > 0 else 0
+                    est_total_tokens = avg_tok * total_samples
+                    print(f"已处理 {count}/{MAX_EXAMPLES} 个样本 | "
+                          f"平均 token/样本: {avg_tok:.2f} | "
+                          f"平均字符/样本: {avg_char:.2f} | "
+                          f"预估总 token 数: {est_total_tokens/1e9:.3f}B | "
+                          f"耗时: {now-start_time:.1f}s")
+                    last_report_time = now
 
-                    print(
-                        f"processed={count}, "
-                        f"avg_tokens={avg_tok:.1f}, "
-                        f"avg_chars={avg_chars:.1f}, "
-                        f"est_total_tokens={est_total/1e9:.3f}B, "
-                        f"elapsed={now - t_start:.1f}s"
-                    )
-                    t_last = now
-
-    if batch:
-        lens = tokenize_batch(tok, batch)
+    # 处理剩余的不足 batch 的数据
+    if batch_texts:
+        lens = tokenize_batch(tokenizer, batch_texts)
         total_tokens += sum(lens)
-        count += len(batch)
 
+    if count == 0:
+        print("错误：未提取到任何有效的 assistant 回复。")
+        return
+
+    # 4. 最终统计
     avg_tokens = total_tokens / count
     avg_chars = total_chars / count
-    estimated_total = avg_tokens * TOTAL_EXAMPLES
-    ratio_to_1b = estimated_total / 1_000_000_000
-    estimated_blocks_512 = estimated_total / 512
+    estimated_total_tokens = avg_tokens * total_samples
+    ratio_to_1b = estimated_total_tokens / 1_000_000_000
+    estimated_blocks_512 = estimated_total_tokens / 512
 
-    print("\n==== Result ====")
-    print("sampled examples:", count)
-    print("skipped:", skipped)
-    print("avg chars/example:", round(avg_chars, 2))
-    print("avg tokens/example:", round(avg_tokens, 2))
-    print("estimated total tokens:", round(estimated_total))
-    print("estimated total tokens B:", round(estimated_total / 1e9, 4))
-    print("ratio to 1B:", round(ratio_to_1b, 4))
-    print("estimated 512-token blocks:", round(estimated_blocks_512))
-
-    required_avg_for_1b = 1_000_000_000 / TOTAL_EXAMPLES
-    print("required avg tokens/example for 1B:", round(required_avg_for_1b, 2))
-
+    print("\n" + "=" * 60)
+    print("📊 【统计报告：预处理后回复的 Token 数量】")
+    print("=" * 60)
+    print(f"采样样本数        : {count}")
+    print(f"总样本数（全量）  : {total_samples}")
+    print(f"平均字符/样本     : {avg_chars:.2f}")
+    print(f"平均 token/样本   : {avg_tokens:.2f}")
+    print(f"预估总 token 数   : {estimated_total_tokens:,.0f} ({estimated_total_tokens/1e9:.4f}B)")
+    print(f"相当于 1B 的倍数  : {ratio_to_1b:.4f}")
+    print(f"预估 512-token 块 : {estimated_blocks_512:,.0f}")
+    print(f"达到 1B 所需的平均 token/样本: {1_000_000_000 / total_samples:.2f}")
 
 if __name__ == "__main__":
     main()
