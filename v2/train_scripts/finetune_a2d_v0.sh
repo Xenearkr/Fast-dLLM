@@ -23,6 +23,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
 model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
+config="ds_config_zero2_full.json"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
@@ -48,7 +49,7 @@ mkdir -p "${run_config_dir}"
 current_script="$(realpath "${BASH_SOURCE[0]}")"
 cp -av "${current_script}" "${run_config_dir}/$(basename "${current_script}")"
 cp -av train_scripts/finetune.py "${run_config_dir}/finetune.py"
-cp -av configs/ds_config_zero2_full.json "${run_config_dir}/ds_config_zero2_full.json"
+cp -av "configs/${config}" "${run_config_dir}/${config}"
 
 deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11000" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
@@ -110,7 +111,7 @@ cmd="deepspeed ${deepspeed_args} \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero2_full.json \
+    --deepspeed configs/${config} \
     --bf16 \
     --run_name finetune \
     --validation_split_percentage 0 \
@@ -123,6 +124,7 @@ cmd="deepspeed ${deepspeed_args} \
     --preprocessing_num_workers 32 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
+    --optim adamw_bnb_8bit \
     --max_steps 20 "
 
 # 改用 ZeRO-3 no offload

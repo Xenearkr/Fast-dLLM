@@ -1,4 +1,5 @@
-# merge_lora_fast_dllm.py
+# python /home/u-shengbf/Codes/Fast-dLLM/v2/train_scripts/merge_lora_fast_dllm.py
+# 注：此文件暂时应该不需要使用
 import shutil
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from peft import PeftModel
 
 # 请慎重确认此处配置
 base_model_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
-adapter_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260531_090322/checkpoint-10/adapter_model" # "/home/u-shengbf/Codes/Fast-dLLM/v2/adapter_model"
+adapter_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260531_145513/checkpoint-10/adapter_model" # "/home/u-shengbf/Codes/Fast-dLLM/v2/adapter_model"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260524_172813/checkpoint-1000"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260524_172813/checkpoint-1000/adapter_model"
 merged_output_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_merged_something"

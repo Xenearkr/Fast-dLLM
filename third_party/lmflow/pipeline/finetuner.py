@@ -622,6 +622,7 @@ class Finetuner(BaseTuner):
                 trainer.save_model()  # Saves the tokenizer too for easy upload
             else:
                 if model_args.save_aggregated_lora:
+                    print("[Check] Merge-LoRA")
                     model.merge_lora_weights()
                 model.save(finetuner_args.output_dir, model_args.save_aggregated_lora)
             # save language_projection for multi-modal model;

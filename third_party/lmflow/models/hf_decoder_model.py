@@ -601,6 +601,7 @@ class HFDecoderModel(DecoderModel, HFModelMixin, Tunable):
     def merge_lora_weights(self):
         if self.model_args.use_lora and not self.model_args.use_qlora:
             self.get_backend_model().merge_and_unload()
+            print("[Check] Finish Merging LoRA")
         elif self.model_args.use_qlora:
             logger.warning("Reloading base model in 16-bit precision to merge adapter weights. NOTE: Your device must have"
                            "sufficient memory to reload the model in half-precision without quantization.")
