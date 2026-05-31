@@ -1,5 +1,6 @@
 """
 用与 finetune_a2d_v0.sh 相同的方式加载 / 分词 conversation 数据，再调用 mdm_sample 生成轨迹。
+支持使用 accelerate 进行多卡 (如 8*4090) 分布式并行加速生成。
 
 输出 JSONL 每行字段：
   - conversation_id
@@ -12,10 +13,12 @@ import sys
 import types
 from pathlib import Path
 import argparse
+import time
 
 import torch
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import accelerate  # 引入 accelerate 库
 
 DEFAULT_DATASET_PATH = (
     "/home/u-chenx/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use/train-00000.json"
@@ -77,7 +80,7 @@ def batch_sample(
     sample_indices = torch.arange(batch_size, device=self.device)
     finished_samples = {}
     finished_trajectories = {}
-    # 方案 A：记录 [seq_len, prompt_padded_len) 的 padding unmask + [prompt_padded_len, ...) 的新 block
+    
     traj_lens = torch.full(
         (batch_size,),
         prompt_padded_len + max_new_tokens,
@@ -98,28 +101,16 @@ def batch_sample(
         trajectory[predict_sample_idx, min_len] = decode_count[predict_sample_idx]
 
     def align_trajectory_to_sample(traj_row, sample_row, current_count):
-        """
-        将轨迹张量裁剪或填充至与样本等长。
-        如果轨迹长度不足，在尾部填充 current_count + 1
-        """
         sample_len = sample_row.shape[0]
-        
-        # 情况 1：如果轨迹长度已经大于等于样本长度，进行截断
         if traj_row.shape[0] >= sample_len:
             return traj_row[:sample_len].clone()
-        
-        # 情况 2：如果轨迹长度不足，计算需要填充的长度
         pad_len = sample_len - traj_row.shape[0]
-        
-        # 使用 torch.full 创建一个填充张量，其值全部为 current_count + 1
         pad = torch.full(
             (pad_len,),
             fill_value=current_count + 1,
             device=traj_row.device,
             dtype=traj_row.dtype,
         )
-        
-        # 拼接并返回
         return torch.cat([traj_row, pad])
 
     def record_unmasks(traj, counts, cur_seq_len, cur_traj_lens, unmask_idx, abs_start):
@@ -173,7 +164,6 @@ def batch_sample(
                 x_t = torch.cat([x_t, next_token], dim=1)
                 record_append_decode(trajectory, decode_count, seq_len, traj_lens, x_t.shape[1] - 1)
                 step += 1
-
                 break
 
             for small_block_idx in range(num_small_blocks):
@@ -215,10 +205,9 @@ def batch_sample(
 
                     finished_row_flags = ((x_1 == stop_token) & unmask_idx).any(dim=1)
                     finished_flag = finished_flag | finished_row_flags
-
                     step += 1
 
-        if input_ids.shape[1] ==  x_t.shape[1]:
+        if input_ids.shape[1] == x_t.shape[1]:
             input_ids = x_t
         else:
             input_ids[:, :(block_idx + 1)*block_size] = x_t[:, :-1]
@@ -333,7 +322,6 @@ def batch_generate(
     threshold,
     use_block_cache,
 ):
-    """返回 (completions, trajectories)，trajectories[i] 与 finished_samples[i] 等长的 decode 步数列表。"""
     input_id_list = []
     seq_lens = []
     max_len = 0
@@ -357,7 +345,7 @@ def batch_generate(
                 mask_id,
                 dtype=torch.long,
                 device=device,
-            )
+                )
             input_ids = torch.cat([input_ids, pad], dim=1)
         padded.append(input_ids)
 
@@ -401,8 +389,6 @@ def batch_generate(
     return completions, trajectories
 
 
-
-
 def main():
     parser = argparse.ArgumentParser()
 
@@ -425,7 +411,7 @@ def main():
     parser.add_argument("--mask_id", type=int, default=151665)
     parser.add_argument("--bd_size", type=int, default=32)
     parser.add_argument("--small_block_size", type=int, default=8)
-    parser.add_argument("--threshold", type=float, default=torch.inf) #这里强制每一步解码一个位置
+    parser.add_argument("--threshold", type=float, default=torch.inf) 
     parser.add_argument("--use_block_cache", action="store_true")
 
     parser.add_argument("--limit", type=int, default=None)
@@ -440,7 +426,9 @@ def main():
             f"Got max_new_tokens={args.max_new_tokens}, bd_size={args.bd_size}"
         )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # 1. 初始化 Accelerator 
+    accelerator = accelerate.Accelerator()
+    device = accelerator.device
 
     if args.dtype == "bf16":
         torch_dtype = torch.bfloat16
@@ -449,7 +437,10 @@ def main():
     else:
         torch_dtype = torch.float32
 
-    print("Loading tokenizer:", args.model_path)
+    # 仅在主进程（rank 0）打印加载信息
+    if accelerator.is_main_process:
+        print("Loading tokenizer:", args.model_path)
+        
     tokenizer = AutoTokenizer.from_pretrained(
         args.model_path,
         trust_remote_code=True,
@@ -466,42 +457,62 @@ def main():
         )
     conversation_template = JINJA_TEMPLATES[args.conversation_template]
 
-    print("Loading model:", args.model_path)
+    if accelerator.is_main_process:
+        print("Loading model:", args.model_path)
+
+    # 2. 干净地加载模型，不要传任何自定义的 device_map 字典，防止卡抢占
     model = AutoModelForCausalLM.from_pretrained(
         args.model_path,
         trust_remote_code=True,
         torch_dtype=torch_dtype,
         local_files_only=args.local_files_only,
-    ).to(device)
+        low_cpu_mem_usage=True      # 降低加载时的临时内存开销
+    )
 
+    # 3. 核心：直接把模型整体搬运到当前进程对应的独立卡上
+    model = model.to(device)
+
+    # 4. 绑定自定义类方法并开启 eval
+    model.mdm_sample = types.MethodType(batch_sample, model)
     model.eval()
 
-    model.mdm_sample = types.MethodType(batch_sample, model)
+    # 5. 使用 accelerate 规范包装模型
+    generation_model = model
 
-    items = load_conversation_dataset(args.dataset_path, limit=args.limit)
+    # 6. 分布式加载与精准数据切片
+    all_items = load_conversation_dataset(args.dataset_path, limit=args.limit)
+
+    # 修复BUG：正确使用上下文管理器，在外部接收分发切片后的局部列表
+    with accelerator.split_between_processes(all_items) as local_items:
+        worker_items = list(local_items)
 
     output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if accelerator.is_main_process:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Dataset: {args.dataset_path}")
+        print(f"Total problems across all GPUs: {len(all_items)}")
+        print(f"Problems assigned per GPU (approx): {len(worker_items)}")
+        print(f"Output: {output_path}")
 
-    print(f"Dataset: {args.dataset_path}")
-    print(f"Num problems: {len(items)}")
-    print(f"Output: {output_path}")
+    local_rows = []
 
-    rows = []
-
-    for start in tqdm(range(0, len(items), args.batch_size), desc="Generating"):
-        batch_items = items[start : start + args.batch_size]
+    # 使用 tqdm 包装（只展示主进程的进度条以避免终端错乱）
+    disable_tqdm = not accelerator.is_main_process
+    for start in tqdm(range(0, len(worker_items), args.batch_size), desc="Generating", disable=disable_tqdm):
+        batch_items = worker_items[start : start + args.batch_size]
 
         task_ids = [x[0] for x in batch_items]
         instances_batch = [x[1] for x in batch_items]
 
         prompts = [
             build_generation_prompt(instance, tokenizer, conversation_template)
-            for instance in instances_batch
+            for instance in instances_batch if instance.get("messages")
         ]
+        if not prompts:
+            continue
 
         completions, trajectories = batch_generate(
-            model=model,
+            model=generation_model,
             tokenizer=tokenizer,
             prompts=prompts,
             device=device,
@@ -516,7 +527,7 @@ def main():
         for task_id, instance, completion, trajectory in zip(
             task_ids, instances_batch, completions, trajectories
         ):
-            rows.append(
+            local_rows.append(
                 {
                     "conversation_id": task_id,
                     "completion": completion,
@@ -527,11 +538,16 @@ def main():
                 }
             )
 
-    with output_path.open("w", encoding="utf-8") as f:
-        for row in rows:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    # 7. 【数据安全收集与异步持久化】
+    # 使用 gather_object 将 8张卡上大小不一的 dict 列表完美聚合回主进程
+    all_gathered_rows = accelerate.utils.gather_object(local_rows)
 
-    print(f"Done. Wrote {len(rows)} samples to {output_path}")
+    # 8. 仅在主进程进行单点写入，防止 8 个进程并发写入同一个文件导致数据错乱/死锁
+    if accelerator.is_main_process:
+        with output_path.open("w", encoding="utf-8") as f:
+            for row in all_gathered_rows:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        print(f"Successfully saved {len(all_gathered_rows)} trajectories to {output_path}")
 
 
 if __name__ == "__main__":
