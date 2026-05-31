@@ -48,7 +48,7 @@ mkdir -p "${run_config_dir}"
 current_script="$(realpath "${BASH_SOURCE[0]}")"
 cp -av "${current_script}" "${run_config_dir}/$(basename "${current_script}")"
 cp -av train_scripts/finetune.py "${run_config_dir}/finetune.py"
-cp -av configs/ds_config_zero3_full.json "${run_config_dir}/ds_config_zero3_full.json"
+cp -av configs/ds_config_zero2_full.json "${run_config_dir}/ds_config_zero2_full.json"
 
 deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11000" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
@@ -110,7 +110,7 @@ cmd="deepspeed ${deepspeed_args} \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero3_full.json \
+    --deepspeed configs/ds_config_zero2_full.json \
     --bf16 \
     --run_name finetune \
     --validation_split_percentage 0 \
@@ -121,10 +121,9 @@ cmd="deepspeed ${deepspeed_args} \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
-    --save_total_limit 2 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --max_steps 5000 "
+    --max_steps 20 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]

@@ -1,16 +1,17 @@
 #!/bin/bash
 set -euo pipefail
-
+ 
 PROJECT_ROOT="/home/u-shengbf/Codes/Fast-dLLM/v2"
 cd "${PROJECT_ROOT}"
-
+ 
 # LoRA版本 bash /home/u-shengbf/Codes/Fast-dLLM/v2/train_scripts/finetune_a2d_v1.sh
+
+# LoRA版本
 # 训练前确认如下事项：
 # 1. 模型加载路径、数据集加载路径
 # 2. output_dir的命名是否符合你的想法
 # 3. 调整参数，比如用max-steps控制本轮迭代次数等
 
-# 目前不支持断点续训（引入了timestamp，可能永远找不到原先output_dir？）
 
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3
@@ -20,7 +21,6 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
 model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
-# "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
 dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
@@ -45,6 +45,7 @@ cp -av "${current_script}" "${run_config_dir}/$(basename "${current_script}")"
 cp -av train_scripts/finetune.py "${run_config_dir}/finetune.py"
 cp -av configs/ds_config_zero3_lora.json "${run_config_dir}/ds_config_zero3_lora.json"
 
+
 deepspeed_args="--num_nodes=1 --num_gpus=4 --master_port=11001" # 4×A6000 先增加参数
 conversation_template=fast_dllm_v2
 
@@ -58,7 +59,6 @@ trust_remote_code=1
 latest_checkpoint=""
 
 if [ -n "${resume_from_dir}" ]; then
-    # 加上 -maxdepth 1 更加精准
     latest_checkpoint=$(find "${output_dir}" -maxdepth 1 -name "checkpoint-*" -type d | sort -V | tail -1)
 
     if [ -n "${latest_checkpoint}" ]; then
@@ -70,6 +70,7 @@ if [ -n "${resume_from_dir}" ]; then
 else
     echo "No RESUME_DIR set, training from model_name_or_path"
 fi
+
 
 resume_arg=""
 if [ -n "${latest_checkpoint}" ]; then
@@ -97,36 +98,40 @@ cmd="deepspeed ${deepspeed_args} \
     ${resume_arg} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
-    --learning_rate 3e-5 \
+    --max_steps 10 \
+    --learning_rate 2e-5 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
     --disable_group_texts 0 \
     --block_size 512 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --deepspeed configs/ds_config_zero3_lora.json \
+    --deepspeed configs/ds_config_zero3_no_offload.json \
     --bf16 \
     --run_name finetune_lora \
     --validation_split_percentage 0 \
     --logging_steps 1 \
     --do_train \
     --ddp_timeout 72000 \
-    --save_strategy no \
+    --save_strategy steps \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --use_flash_attention 1 \
     --gradient_checkpointing 1 \
-    --max_steps 10 \
     --use_lora true \
-    --lora_r 16 \
+    --lora_r 8 \
     --lora_alpha 32 \
-    --lora_dropout 0.05 \
+    --lora_dropout 0.1 \
     --lora_target_modules q_proj,k_proj,v_proj,o_proj \
-    --save_aggregated_lora true \
-    --save_total_limit 3"
+    --save_aggregated_lora true"
 
-# ,gate_proj,up_proj,down_proj
+# 改用 ZeRO-3 no offload
+# 新增：max_steps, save_strategy，先跑起来！[verify]
+# 补充：缓解动态分配尺寸导致的碎片问题
+# + flash_attn?
+# learning rate： 2e-5 -> 1e-5
+# gradient_accumulation_steps 1 -> 8
 
 # 可加：    --max_steps 1000 \
 # 由于alpaca训练集较小，可以进一步调整：--num_train_epochs 3 \

@@ -38,6 +38,8 @@ v2/base_models/**/tokenizer.json
 v2/evalplus_results/
 v2/base_models/*/.cache/
 v2/base_models/*/.gitattributes
+v2/base_models/Qwen2.5-ref/
+v2/base_models/Qwen3-ref/
 
 *.safetensors
 

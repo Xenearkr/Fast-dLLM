@@ -1,6 +1,6 @@
 """
-huggingface-cli download Efficient-Large-Model/Fast_dLLM_v2_7B \
-  --local-dir /home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B \
+huggingface-cli download Qwen/Qwen3-8B \
+  --local-dir /home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Qwen3-ref \
   --resume-download \
   --local-dir-use-symlinks False
 
