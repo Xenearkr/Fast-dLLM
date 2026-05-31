@@ -115,18 +115,18 @@ cmd="deepspeed ${deepspeed_args} \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
-    --use_flash_attention 0 \
+    --use_flash_attention 1 \
     --gradient_checkpointing 1 \
-    --max_steps 1000 \
+    --max_steps 10 \
     --use_lora true \
     --lora_r 16 \
     --lora_alpha 32 \
     --lora_dropout 0.05 \
-    --lora_target_modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
-    --save_aggregated_lora false \
+    --lora_target_modules q_proj,k_proj,v_proj,o_proj \
+    --save_aggregated_lora true \
     --save_total_limit 3"
 
-
+# ,gate_proj,up_proj,down_proj
 
 # 可加：    --max_steps 1000 \
 # 由于alpaca训练集较小，可以进一步调整：--num_train_epochs 3 \

@@ -7,10 +7,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 # 请慎重确认此处配置
-base_model_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
-adapter_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260526_174537"
+base_model_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
+adapter_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260531_090322/checkpoint-10/adapter_model" # "/home/u-shengbf/Codes/Fast-dLLM/v2/adapter_model"
+# "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260524_172813/checkpoint-1000"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_20260524_172813/checkpoint-1000/adapter_model"
-merged_output_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_merged_lora_20260526_174537"
+merged_output_path = "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_merged_something"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_fast_dLLM_7B_merged_20260524_172813"
 
 base_model_path = Path(base_model_path)
