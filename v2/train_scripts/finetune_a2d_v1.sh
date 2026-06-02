@@ -24,7 +24,7 @@ model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-
 
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
-dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
+dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/clear"
 
 timestamp=$(date +"%Y%m%d_%H%M%S")
 resume_from_dir="${RESUME_DIR:-}"
@@ -99,7 +99,7 @@ cmd="deepspeed ${deepspeed_args} \
     ${resume_arg} \
     --conversation_template ${conversation_template} \
     --num_train_epochs 1 \
-    --max_steps 1000 \
+    --max_steps 5000 \
     --learning_rate 2e-5 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.03 \
@@ -115,7 +115,7 @@ cmd="deepspeed ${deepspeed_args} \
     --do_train \
     --ddp_timeout 72000 \
     --save_strategy steps \
-    --save_steps 500 \
+    --save_steps 1500 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --use_flash_attention 0 \

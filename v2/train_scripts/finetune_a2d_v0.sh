@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_ROOT="/home/u-shengbf/Codes/Fast-dLLM/v2"
 cd "${PROJECT_ROOT}"
 
-# 运行方式（必须在项目根目录下）：bash train_scripts/finetune_a2d_v0.sh
+# 运行方式：bash train_scripts/finetune_a2d_v0.sh
 
 # 训练前确认如下事项：
 # 1. 模型加载路径、数据集加载路径
@@ -27,7 +27,7 @@ config="ds_config_zero2_full.json"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
-dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use"
+dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/clear" # use 
 
 # 时间戳逻辑
 timestamp=$(date +"%Y%m%d_%H%M%S")
@@ -122,10 +122,10 @@ cmd="deepspeed ${deepspeed_args} \
     --save_steps 1000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
-    --use_flash_attention 0 \
+    --use_flash_attention 1 \
     --gradient_checkpointing 1 \
-    --optim adamw_bnb_8bit \
-    --max_steps 20 "
+    --gradient_checkpointing_kwargs '{"use_reentrant": false}' \
+    --max_steps 1000 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]
@@ -134,8 +134,7 @@ cmd="deepspeed ${deepspeed_args} \
 # learning rate： 2e-5 -> 1e-5
 # gradient_accumulation_steps 1 -> 8
 
-# 可加：    --max_steps 1000 \
-# 由于alpaca训练集较小，可以进一步调整：--num_train_epochs 3 \
+#     --optim adamw_bnb_8bit \
 
 
 cat > "${run_config_dir}/launch_cmd.sh" <<EOF
