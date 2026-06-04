@@ -23,11 +23,11 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
 model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
-config="ds_config_zero2_full.json"
+config="ds_config_zero3_full.json"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
-dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/clear" # use 
+dataset_path="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use" # use 
 
 # 时间戳逻辑
 timestamp=$(date +"%Y%m%d_%H%M%S")
@@ -119,13 +119,12 @@ cmd="deepspeed ${deepspeed_args} \
     --do_train \
     --ddp_timeout 72000 \
     --save_strategy steps \
-    --save_steps 1000 \
+    --save_steps 400 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --use_flash_attention 1 \
     --gradient_checkpointing 1 \
-    --gradient_checkpointing_kwargs '{"use_reentrant": false}' \
-    --max_steps 1000 "
+    --max_steps 2000 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]
@@ -135,7 +134,7 @@ cmd="deepspeed ${deepspeed_args} \
 # gradient_accumulation_steps 1 -> 8
 
 #     --optim adamw_bnb_8bit \
-
+#     --gradient_checkpointing_kwargs '{"use_reentrant": false}' \ 注意：单引号用法错误
 
 cat > "${run_config_dir}/launch_cmd.sh" <<EOF
 #!/usr/bin/env bash

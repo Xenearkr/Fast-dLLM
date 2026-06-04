@@ -16,6 +16,8 @@
 # bash eval_humaneval_fast_multigpu.sh Qwen3_Large
 # bash eval_humaneval_fast_multigpu.sh Qwen3_LoRA
 # bash eval_humaneval_fast_multigpu.sh Qwen3_LL
+# bash eval_humaneval_fast_multigpu.sh Qwen3_LargeBlock
+# bash eval_humaneval_fast_multigpu.sh Qwen3_Clear
 # 
 # 参数说明：
 # METHOD: Fast / Qwen2.5 / Qwen2.5_LoRA / Qwen3
@@ -244,6 +246,14 @@ case "$METHOD" in
 
   Qwen3_LL)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_lora_20260601_102818"
+    ;;
+
+  Qwen3_LargeBlock)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260602_201936"
+    ;;
+
+  Qwen3_Clear)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260603_192332/checkpoint-1000"
     ;;
 
   *)
