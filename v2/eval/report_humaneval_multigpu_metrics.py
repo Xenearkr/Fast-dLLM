@@ -25,6 +25,11 @@ def aggregate_progress(progress_files):
     generated_tokens = sum(int(x.get("generated_tokens", 0)) for x in rows)
     allocated_new_tokens = sum(int(x.get("allocated_new_tokens", 0)) for x in rows)
     generation_time_sec = sum(float(x.get("generation_time_sec", 0.0)) for x in rows)
+    
+    # -------------------------------------------------------------
+    # 修改点 1：累加所有 GPU 分片的总 forward 步数
+    # -------------------------------------------------------------
+    total_forward_steps = sum(int(x.get("total_forward_steps", 0)) for x in rows)
 
     start_times = [
         float(x.get("start_time"))
@@ -53,6 +58,9 @@ def aggregate_progress(progress_files):
         "total_samples": total_samples,
         "done_samples": done_samples,
         "generated_tokens": generated_tokens,
+        "total_forward_steps": total_forward_steps, # 导出总步数
+        # 计算全局多卡 TPF 指标
+        "token_per_forward": generated_tokens / total_forward_steps if total_forward_steps else None,
         "allocated_new_tokens": allocated_new_tokens,
         "generation_time_sec_sum": generation_time_sec,
         "wall_time_sec": wall_time_sec,
@@ -84,7 +92,6 @@ def parse_pass_metrics_from_text(text: str):
         elif lower == "base" or lower.startswith("base "):
             current_section = "base"
 
-        # 支持 {"pass@1": 0.123}、'pass@1': 0.123、pass@1: 0.123、pass@1 = 0.123
         for m in re.finditer(r"['\"]?(pass@\d+)['\"]?\s*[:=]\s*([0-9]*\.?[0-9]+)", line):
             key = m.group(1)
             value = float(m.group(2))
@@ -95,7 +102,6 @@ def parse_pass_metrics_from_text(text: str):
             else:
                 metrics.setdefault(key, value)
 
-        # 兼容 EvalPlus 表格样式，例如：pass@1  0.8123
         for m in re.finditer(r"\b(pass@\d+)\b\s+([0-9]*\.?[0-9]+)", line):
             key = m.group(1)
             value = float(m.group(2))
@@ -105,7 +111,6 @@ def parse_pass_metrics_from_text(text: str):
             else:
                 metrics.setdefault(key, value)
 
-    # 如果日志里没有明显 section，但出现两个 pass@1，通常第一个是 base，第二个是 plus/base+extra。
     pass1_values = [v for section, key, v in observed_pass_values if key == "pass@1"]
     if "base_pass@1" not in metrics and pass1_values:
         metrics["base_pass@1"] = pass1_values[0]
@@ -152,7 +157,6 @@ def parse_eval_result_files_from_samples(samples_path: Path):
                         base_statuses.append(str(row["base_status"]).lower())
                     if "plus_status" in row:
                         plus_statuses.append(str(row["plus_status"]).lower())
-                    # Some EvalPlus result rows may use pass/fail booleans.
                     if "base" in row and isinstance(row["base"], bool):
                         base_statuses.append("pass" if row["base"] else "fail")
                     if "plus" in row and isinstance(row["plus"], bool):
@@ -185,7 +189,6 @@ def fmt_float(value, digits=4):
 def maybe_pct(value):
     if value is None:
         return "N/A"
-    # EvalPlus pass@k 通常是 0-1；若已是百分比则不二次乘 100。
     if 0.0 <= value <= 1.0:
         return f"{100.0 * value:.2f}%"
     return f"{value:.2f}"
@@ -246,12 +249,19 @@ def main():
     print(f"  shards completed/failed: {progress_metrics['completed_shards']}/{progress_metrics['failed_shards']}")
     print(f"  samples: {progress_metrics['done_samples']}/{progress_metrics['total_samples']}")
     print(f"  generated tokens: {progress_metrics['generated_tokens']}")
+    
+    # -------------------------------------------------------------
+    # 修改点 2：在屏幕输出中打印合并后的真实总步数与最终的 token_per_forward
+    # -------------------------------------------------------------
+    print(f"  total forward steps: {progress_metrics['total_forward_steps']}")
+    print(f"  token per forward (TPF): {fmt_float(progress_metrics['token_per_forward'], 4)} tokens/forward")
+    
     print(f"  allocated new token slots: {progress_metrics['allocated_new_tokens']}")
     print(f"  wall time: {fmt_float(progress_metrics['wall_time_sec'], 2)} s")
     print(f"  summed GPU generation time: {fmt_float(progress_metrics['generation_time_sec_sum'], 2)} s")
-    print(f"  wall TPF: {fmt_float(progress_metrics['wall_tpf_sec_per_sample'], 4)} s/sample")
+    print(f"  wall Sec/Sample: {fmt_float(progress_metrics['wall_tpf_sec_per_sample'], 4)} s/sample")
     print(f"  wall TPS: {fmt_float(progress_metrics['wall_tps_tokens_per_sec'], 4)} tokens/s")
-    print(f"  GPU-summed TPF: {fmt_float(progress_metrics['gpu_summed_tpf_sec_per_sample'], 4)} s/sample")
+    print(f"  GPU-summed Sec/Sample: {fmt_float(progress_metrics['gpu_summed_tpf_sec_per_sample'], 4)} s/sample")
     print(f"  GPU-summed TPS: {fmt_float(progress_metrics['gpu_summed_tps_tokens_per_sec'], 4)} tokens/s")
 
     if "eval_result_files" in eval_metrics:

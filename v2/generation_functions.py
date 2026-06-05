@@ -30,11 +30,13 @@ class Fast_dLLM_QwenForCausalLM:
         top_p=0.95,
         temperature=0.0,
     ):
+        forward_passes = 0
         num_blocks = max_new_tokens // block_size + seq_len.max().item() // block_size
         batch_size = input_ids.shape[0]
 
         if min_len > block_size:
             output = self.forward(input_ids=input_ids[:, :(min_len // block_size * block_size)], use_cache=True, update_past_key_values=True, block_size=block_size)
+            forward_passes += 1
             logits, past_key_values = output.logits, output.past_key_values
             if min_len % block_size == 0:
                 predict_sample_idx = (seq_len == min_len)
@@ -79,6 +81,7 @@ class Fast_dLLM_QwenForCausalLM:
                     if finished_flag.all():
                         break
                     output = self.forward(input_ids=x_t[:, -block_size:], use_cache=True, past_key_values=past_key_values, update_past_key_values=True, block_size=block_size)
+                    forward_passes += 1
                     logits, past_key_values = output.logits, output.past_key_values
                     next_token = logits[:, -1:, :].argmax(dim=-1)
                     next_token[finished_flag] = tokenizer.pad_token_id
@@ -101,14 +104,17 @@ class Fast_dLLM_QwenForCausalLM:
                         if use_block_cache:
                             if block_past_key_values is None or (x_t[:, -block_size+small_block_start_idx] == mask_id).any():
                                 output = self.forward(input_ids=x_t[:, -block_size:], use_cache=True, past_key_values=past_key_values, update_past_key_values=False, use_block_cache=True)
+                                forward_passes += 1
                                 logits, block_past_key_values = output.logits, output.block_past_key_values
                                 logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
                                 logits = logits[:, start:end]
                             else:
                                 logits = self.forward(input_ids=x_t[:,start:end], use_cache=True, past_key_values=past_key_values, update_past_key_values=False, use_block_cache=True, block_past_key_values=block_past_key_values, replace_position=small_block_start_idx).logits
+                                forward_passes += 1
                                 logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
                         else:
                             logits = self.forward(input_ids=x_t[:, -block_size:], use_cache=True, past_key_values=past_key_values, update_past_key_values=False).logits
+                            forward_passes += 1
                             logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
                             logits = logits[:, start:end]
                         x_1, p_1t = self.sample_with_top_p(logits, top_p=top_p, temperature=temperature)
@@ -165,7 +171,7 @@ class Fast_dLLM_QwenForCausalLM:
                 finished_samples[original_idx] = x_t[sample_idx:sample_idx+1].clone().squeeze(dim=0)
         
         assert len(finished_samples) == batch_size
-        return finished_samples
+        return finished_samples, forward_passes
 
     @torch.no_grad()
     def mdm_sample_with_visualization(

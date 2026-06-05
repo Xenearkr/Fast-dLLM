@@ -172,7 +172,7 @@ def batch_generate(
     seq_len_tensor = torch.tensor(seq_lens, dtype=torch.long, device=device)
 
     with torch.inference_mode():
-        generated = model.mdm_sample(
+        generated, forward_steps = model.mdm_sample(
             batched_input_ids,
             tokenizer=tokenizer,
             block_size=bd_size,
@@ -189,7 +189,6 @@ def batch_generate(
     generated_token_counts = []
 
     for batch_idx, prompt_len in enumerate(seq_lens):
-        # generation_functions.batch_sample 返回 dict: {original_batch_idx: full_ids}
         full_ids = generated[batch_idx]
         new_ids = full_ids[prompt_len:]
 
@@ -200,7 +199,7 @@ def batch_generate(
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
         completions.append(text)
 
-    return completions, generated_token_counts
+    return completions, generated_token_counts, forward_steps
 
 
 def main():
@@ -281,6 +280,10 @@ def main():
 
     progress_path = Path(args.progress_file) if args.progress_file else None
     now = time.time()
+    
+    # -------------------------------------------------------------
+    # 修改点 1：在指标字典中初始化 total_forward_steps 与 token_per_forward
+    # -------------------------------------------------------------
     metrics = {
         "dataset": args.dataset,
         "status": "initializing",
@@ -297,6 +300,8 @@ def main():
         "max_new_tokens": args.max_new_tokens,
         "allocated_new_tokens": 0,
         "generated_tokens": 0,
+        "total_forward_steps": 0,      # 新增：记录总前向传播步数
+        "token_per_forward": 0.0,      # 新增：真正的 TPF 指标
         "generation_time_sec": 0.0,
         "wall_elapsed_sec": 0.0,
         "failed_extract_count": 0,
@@ -383,7 +388,7 @@ def main():
 
                 cuda_synchronize_if_needed(device)
                 gen_start = time.perf_counter()
-                completions, token_counts = batch_generate(
+                completions, token_counts, forward_steps = batch_generate(
                     model=model,
                     tokenizer=tokenizer,
                     prompts=prompts,
@@ -399,13 +404,9 @@ def main():
                 gen_time = time.perf_counter() - gen_start
 
                 for task_id, problem, completion in zip(task_ids, problems_batch, completions):
-                    # EvalPlus schema:
-                    # solution: 自包含代码，通常包含 prompt。
-                    # raw 模式下 problem["prompt"] 是题目给定前缀，completion 是模型续写。
                     if args.prompt_mode == "raw":
                         solution = problem["prompt"] + completion
                     else:
-                        # chat 模式下模型可能输出完整代码，让 sanitize 去处理。
                         solution = completion
 
                     row = {
@@ -417,21 +418,38 @@ def main():
 
                 f.flush()
 
+                # -------------------------------------------------------------
+                # 修改点 2：在循环中累加总步数，并实时更新真正的 token_per_forward 指标
+                # -------------------------------------------------------------
                 metrics["done_batches"] += 1
                 metrics["done_samples"] += len(batch_items)
                 metrics["allocated_new_tokens"] += len(batch_items) * args.max_new_tokens
                 metrics["generated_tokens"] += sum(token_counts)
+                metrics["total_forward_steps"] += forward_steps # 累加前向传播步数
                 metrics["generation_time_sec"] += gen_time
+                
+                if metrics["total_forward_steps"] > 0:
+                    metrics["token_per_forward"] = metrics["generated_tokens"] / metrics["total_forward_steps"]
+                
                 update_progress(progress_path, metrics, status="running")
 
         update_progress(progress_path, metrics, status="completed")
         print(f"Done. Wrote {rows_written} samples to {output_path}")
         print(f"Generated tokens: {metrics['generated_tokens']}")
+        print(f"Total Forward Steps: {metrics['total_forward_steps']}")
         print(f"Generation time: {metrics['generation_time_sec']:.4f}s")
+        
+        # 保留原有的指标输出（含义为 seconds / sample）
         if metrics["done_samples"] > 0:
-            print(f"Shard TPF: {metrics['generation_time_sec'] / metrics['done_samples']:.4f}s/sample")
+            print(f"Shard Sec/Sample: {metrics['generation_time_sec'] / metrics['done_samples']:.4f}s/sample")
         if metrics["generation_time_sec"] > 0:
             print(f"Shard TPS: {metrics['generated_tokens'] / metrics['generation_time_sec']:.4f} tokens/s")
+            
+        # -------------------------------------------------------------
+        # 修改点 3：最终打印真正的 token_per_forward 指标
+        # -------------------------------------------------------------
+        if metrics["total_forward_steps"] > 0:
+            print(f"Shard Token Per Forward (TPF): {metrics['token_per_forward']:.4f} tokens/forward")
 
     except Exception as exc:
         update_progress(progress_path, metrics, status="failed", error=repr(exc))
