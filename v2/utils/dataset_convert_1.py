@@ -17,8 +17,8 @@ OUTPUT_DIR = Path(
     "Llama-Nemotron-code-v1/train_conversation"
 )
 
-SHARD_SIZE = 10000
-MAX_EXAMPLES = None  # 调试可改成 1000
+SHARD_SIZE = 20000
+MAX_EXAMPLES = 100000  # 调试可改成 1000
 PREVIEW_COUNT = 3        # 转换完成后，打印前 x 条数据预览
 PREVIEW_MAX_LEN = 800    # 每条预览数据的最大字符数（None 表示不截断完整打印）
 

@@ -1,35 +1,22 @@
+# 目前逻辑：去掉<think> ~ </think>之间内容
 import json
+import re
 from pathlib import Path
 from typing import Optional, Tuple
 
-def extract_last_python_block(content: str) -> Optional[str]:
+def remove_think_tags(content: str) -> str:
     """
-    提取最后一个 ```python 代码块，从该标记开始直到内容末尾。
-    不再查找闭合的 ```，也不再补充结尾的 ```。
+    去掉所有 <think> 到 </think> 之间的内容（包括标签本身）。
+    使用 re.DOTALL 确保匹配跨行内容，re.IGNORECASE 忽略标签大小写。
+    对于没有 <think> 的文本，完整保留。
     """
-    last_idx = content.rfind("```python")
-    if last_idx == -1:
-        return None
-    # 直接返回从 ```python 到末尾的全部内容
-    return content[last_idx:]
-
-'''
-def extract_last_python_block(content: str) -> Optional[str]:
-    """提取最后一个 ```python 代码块，并确保以 ``` 结尾。"""
-    last_idx = content.rfind("```python")
-    if last_idx == -1:
-        return None
-    sub = content[last_idx:]
-    next_triple = sub.find("```", 9)
-    if next_triple != -1:
-        # 包含结束的 ```
-        return sub[:next_triple + 3]
-    else:
-        return sub + "\n```"
-'''
+    if not content:
+        return ""
+    think_pattern = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+    return think_pattern.sub("", content)
 
 def preprocess_instance(instance: dict) -> Optional[dict]:
-    """处理单个样本，保留非 assistant 消息，过滤/替换 assistant 代码块。"""
+    """处理单个样本，保留非 assistant 消息，过滤 assistant 的思维链内容。"""
     original_messages = instance.get("messages", [])
     new_messages = []
     for msg in original_messages:
@@ -37,12 +24,15 @@ def preprocess_instance(instance: dict) -> Optional[dict]:
         if role != "assistant":
             new_messages.append(msg.copy())
             continue
+        
         content = msg.get("content", "")
-        code_block = extract_last_python_block(content)
-        if code_block is not None:
-            new_msg = msg.copy()
-            new_msg["content"] = code_block
-            new_messages.append(new_msg)
+        # 清洗逻辑：移除思维链，保留其余全部内容
+        cleaned_content = remove_think_tags(content)
+        
+        new_msg = msg.copy()
+        new_msg["content"] = cleaned_content
+        new_messages.append(new_msg)
+        
     if not any(m.get("role") == "assistant" for m in new_messages):
         return None
     instance["messages"] = new_messages
@@ -90,8 +80,8 @@ def preprocess_all_files(input_dir: Path, output_dir: Path, file_pattern: str = 
     print(f"总丢弃样本数: {total_orig - total_kept}")
     print("所有文件预处理完成。")
 
-def compute_average_code_length(processed_dir: Path, num_samples: int = 100, suffix: str = "-processed") -> float:
-    """计算预处理后前 num_samples 个样本的代码块平均长度。"""
+def compute_average_response_length(processed_dir: Path, num_samples: int = 100, suffix: str = "-processed") -> float:
+    """计算预处理后前 num_samples 个样本的回复（去掉思维链后）平均字符长度。"""
     processed_files = sorted(processed_dir.glob(f"*{suffix}.json"))
     if not processed_files:
         print(f"[错误] 在 {processed_dir} 下未找到任何以 {suffix}.json 结尾的文件")
@@ -119,7 +109,7 @@ def compute_average_code_length(processed_dir: Path, num_samples: int = 100, suf
     return sum(lengths) / len(lengths)
 
 def output_first_n_responses(processed_dir: Path, n: int, output_txt: Optional[Path] = None, suffix: str = "-processed") -> None:
-    """输出前 n 个样本的回复内容（代码块）。"""
+    """输出前 n 个样本的回复内容（去掉思维链后的完整回复）。"""
     processed_files = sorted(processed_dir.glob(f"*{suffix}.json"))
     if not processed_files:
         print(f"[错误] 在 {processed_dir} 下未找到任何以 {suffix}.json 结尾的文件")
@@ -146,7 +136,7 @@ def output_first_n_responses(processed_dir: Path, n: int, output_txt: Optional[P
                 })
         remaining -= len(instances)
 
-    print(f"\n📝 前 {len(collected)} 个样本的回复内容（代码块，以 ``` 结尾）如下：\n")
+    print(f"\n📝 前 {len(collected)} 个样本的回复内容（清洗思维链后）如下：\n")
     for i, item in enumerate(collected, 1):
         print(f"===== 样本 {i} (文件: {item['file']}, 文件内序号: {item['index']}) =====")
         print(item["content"])
@@ -154,7 +144,7 @@ def output_first_n_responses(processed_dir: Path, n: int, output_txt: Optional[P
 
     if output_txt:
         with output_txt.open("w", encoding="utf-8") as f:
-            f.write(f"前 {len(collected)} 个样本的回复内容\n\n")
+            f.write(f"前 {len(collected)} 个样本的回复内容（清洗思维链后）\n\n")
             for i, item in enumerate(collected, 1):
                 f.write(f"===== 样本 {i} (文件: {item['file']}, 文件内序号: {item['index']}) =====\n")
                 f.write(item["content"])
@@ -163,18 +153,18 @@ def output_first_n_responses(processed_dir: Path, n: int, output_txt: Optional[P
 
 if __name__ == "__main__":
     # 原始数据路径（输入）
-    INPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/train_conversation")
+    INPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use")
     # 处理后输出路径
-    OUTPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/clear")
+    OUTPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use")
 
-    # 1. 预处理所有文件（处理后的回复均以 ``` 结尾）
+    # 1. 预处理所有文件（去掉所有 <think> 到 </think> 的内容）
     preprocess_all_files(INPUT_DIR, OUTPUT_DIR, file_pattern="train-*.json", suffix="-processed")
 
-    # 2. 统计前 100 个样本的平均代码块长度
+    # 2. 统计前 10000 个样本清洗后的平均文本长度
     NUM_SAMPLES = 10000
-    avg_len = compute_average_code_length(OUTPUT_DIR, num_samples=NUM_SAMPLES, suffix="-processed")
-    print(f"\n前 {NUM_SAMPLES} 个样本中，截取后的代码块平均字符数为: {avg_len:.2f}")
+    avg_len = compute_average_response_length(OUTPUT_DIR, num_samples=NUM_SAMPLES, suffix="-processed")
+    print(f"\n前 {NUM_SAMPLES} 个样本中，清洗后的助理回复平均字符数为: {avg_len:.2f}")
 
-    # 3. 输出前 5 个回复（可修改 y 值）
-    # OUTPUT_Y = 5
-    # output_first_n_responses(OUTPUT_DIR, n=OUTPUT_Y, output_txt=OUTPUT_DIR / "sample_responses.txt")
+    # 3. 输出前 5 个清洗后的实际回复（如果需要观察结果，可以解开下面两行的注释）
+    OUTPUT_Y = 5
+    output_first_n_responses(OUTPUT_DIR, n=OUTPUT_Y, output_txt=OUTPUT_DIR / "sample_responses.txt")
