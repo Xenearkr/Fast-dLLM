@@ -30,6 +30,7 @@ fast_dvlm/data/ALLaVA-4V/
 v2/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp39-cp39-linux_x86_64.whl
 v2/data/Llama-Nemotron-code-v1.1
 v2/data/Llama-Nemotron-math-v1.1
+v2/data/Llama-Nemotron-code-v1/
 
 
 v2/base_models/**/merges.txt

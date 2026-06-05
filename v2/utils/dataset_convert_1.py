@@ -1,10 +1,6 @@
 """
 使用说明：
 - 用于转换Llama-Nemotron数据集格式，使之可直接用于finetune.py
-
-使用方法：
-- 对于SFT/code/v1.1，已经搞定了
-
 """
 
 import json
@@ -13,17 +9,18 @@ from pathlib import Path
 
 INPUT_PATH = Path(
     "/home/u-shengbf/Codes/Fast-dLLM/v2/data/"
-    "Llama-Nemotron-math-v1.1/SFT/math/math_v1.1.jsonl"
+    "Llama-Nemotron-code-v1/SFT/code/code_v1.jsonl"
 )
 
 OUTPUT_DIR = Path(
     "/home/u-shengbf/Codes/Fast-dLLM/v2/data/"
-    "Llama-Nemotron-math-v1.1/train_conversation"
+    "Llama-Nemotron-code-v1/train_conversation"
 )
 
 SHARD_SIZE = 10000
 MAX_EXAMPLES = None  # 调试可改成 1000
-
+PREVIEW_COUNT = 3        # 转换完成后，打印前 x 条数据预览
+PREVIEW_MAX_LEN = 800    # 每条预览数据的最大字符数（None 表示不截断完整打印）
 
 def normalize_messages(input_field, output_text, system_prompt=None):
     messages = []
@@ -124,6 +121,7 @@ def main():
     skipped = 0
     shard_idx = 0
     shard_instances = []
+    preview_instances = [] # 用于存放预览数据的列表
 
     with INPUT_PATH.open("r", encoding="utf-8") as fin:
         for line_no, line in enumerate(fin, start=1):
@@ -157,6 +155,10 @@ def main():
             }
 
             shard_instances.append(instance)
+
+            if len(preview_instances) < PREVIEW_COUNT:
+                preview_instances.append(instance)
+
             kept += 1
 
             if len(shard_instances) >= SHARD_SIZE:
@@ -179,7 +181,23 @@ def main():
     print(f"Seen:    {seen}")
     print(f"Kept:    {kept}")
     print(f"Skipped: {skipped}")
-    print(f"Shards:  {shard_idx + 1}")
+    print(f"Shards:  {shard_idx + (1 if shard_instances else 0)}")
+
+    if preview_instances:
+        print("\n" + "="*50)
+        print(f"数据格式预览 (前 {len(preview_instances)} 条):")
+        for i, inst in enumerate(preview_instances, 1):
+            print(f"\n--- 预览条目 {i} ---")
+            # 使用 indent=2 格式化为易读的 JSON 字符串
+            inst_str = json.dumps(inst, ensure_ascii=False, indent=2)
+            
+            # 如果配置了最大长度，并且字符串超长，则截断
+            if PREVIEW_MAX_LEN is not None and len(inst_str) > PREVIEW_MAX_LEN:
+                print(inst_str[:PREVIEW_MAX_LEN])
+                print(f"\n... [因超过 {PREVIEW_MAX_LEN} 字符已截断显示]")
+            else:
+                print(inst_str)
+        print("="*50 + "\n")
 
 
 if __name__ == "__main__":

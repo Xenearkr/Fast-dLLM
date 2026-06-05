@@ -27,14 +27,13 @@ ds.save_to_disk("/data/datasets/llama_nemotron_sft_arrow")
 
 from huggingface_hub import snapshot_download
 
-# 只下载 v1.1
 snapshot_download(
     repo_id="nvidia/Llama-Nemotron-Post-Training-Dataset",
     repo_type="dataset",
-    local_dir="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-math-v1.1",
+    local_dir="/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1",
     local_dir_use_symlinks=False,
     allow_patterns=[
-        "SFT/math/math_v1.1.jsonl",
+        "SFT/code/code_v1.jsonl",
         "README.md",
         ".gitattributes",
     ],
