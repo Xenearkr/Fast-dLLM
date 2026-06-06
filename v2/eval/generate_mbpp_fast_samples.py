@@ -40,11 +40,9 @@ def str2bool(value):
 
 
 def import_generation_functions():
-    # 获取当前文件所在目录的上一层
     current_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(current_dir)
     
-    # 将父目录添加到系统路径
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
         
@@ -111,10 +109,6 @@ def get_entry_point(problem: dict) -> str:
 
 
 def build_mbpp_prompt(problem: dict) -> str:
-    """
-    MBPP 是完整函数生成，不是 HumanEval 式函数补全。
-    这里强制模型遵守 EvalPlus 期望的 entry point。
-    """
     entry_point = get_entry_point(problem)
     tests = "\n".join(problem.get("test_list", []))
     prompt = problem["prompt"].strip()
@@ -166,10 +160,6 @@ def fenced_blocks(text: str):
 
 
 def cut_tail_after_code(text: str) -> str:
-    """
-    只在已经定位到代码候选后使用。
-    不要在原始 MBPP prompt 上直接按 assert 截断。
-    """
     text = text.replace("\r\n", "\n")
 
     stop_patterns = [
@@ -225,10 +215,6 @@ def candidate_from_target_def(text: str, entry_point: str):
 
 
 def candidate_from_case_insensitive_target_def(text: str, entry_point: str):
-    """
-    只用于捕捉 count_substrings vs count_Substrings 这种大小写差异。
-    不处理 find_n_largest vs heap_queue_largest 这种语义不同函数名。
-    """
     text = remove_markdown(text)
     pattern = r"def\s+([A-Za-z_]\w*)\s*\("
     for m in re.finditer(pattern, text):
@@ -264,19 +250,10 @@ def candidate_from_first_code_start(text: str):
 
 
 def make_compilable_stub(entry_point: str) -> str:
-    """
-    兜底：如果模型输出无法抽取为可编译代码，写一个必错但可编译的 stub。
-    这样 invalid generation 仍计为 wrong，不会污染为语法错误或触发奇怪 fallback。
-    """
     return f"def {entry_point}(*args, **kwargs):\n    return None\n"
 
 
 class ConservativeRename(ast.NodeTransformer):
-    """
-    只用于大小写不一致的同名重命名。
-    例如 count_substrings -> count_Substrings。
-    不用于语义不同的函数名。
-    """
     def __init__(self, old_name: str, new_name: str):
         self.old_name = old_name
         self.new_name = new_name
@@ -298,10 +275,6 @@ class ConservativeRename(ast.NodeTransformer):
 
 
 def ensure_entry_point_name_conservative(code: str, entry_point: str) -> str:
-    """
-    只处理大小写不同但 lower 完全相同的 entry point。
-    不会把 find_n_largest 改成 heap_queue_largest。
-    """
     try:
         tree = ast.parse(code)
     except SyntaxError:
@@ -334,10 +307,6 @@ def ensure_entry_point_name_conservative(code: str, entry_point: str) -> str:
 
 
 def clean_generated_mbpp_code(raw_text: str, problem: dict):
-    """
-    生成时即时清理，写入 JSONL 前保证 solution 尽量是 EvalPlus 可执行代码。
-    不做激进函数名改写，避免屏蔽模型本身问题。
-    """
     entry_point = get_entry_point(problem)
     candidates = []
 
@@ -389,6 +358,7 @@ def clean_generated_mbpp_code(raw_text: str, problem: dict):
     return make_compilable_stub(entry_point), False
 
 
+# ============ 修改点 1: fast_batch_generate 捕获 forward_steps ============
 def fast_batch_generate(
     model,
     tokenizer,
@@ -435,7 +405,7 @@ def fast_batch_generate(
     seq_len_tensor = torch.tensor(seq_lens, dtype=torch.long, device=device)
 
     with torch.inference_mode():
-        generated = model.mdm_sample(
+        generated, forward_steps = model.mdm_sample(          # ← 接收 forward_steps
             batched_input_ids,
             tokenizer=tokenizer,
             block_size=bd_size,
@@ -459,16 +429,17 @@ def fast_batch_generate(
         new_ids_raw = full_ids[prompt_len:]
         allocated_new_token_counts.append(int(new_ids_raw.numel()))
 
-        # 去掉残留 mask token 后，按实际可 decode 的 completion token 计 TPS。
         new_ids = new_ids_raw[new_ids_raw != mask_id]
         generated_token_counts.append(int(new_ids.numel()))
 
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
         completions.append(text)
 
-    return completions, generated_token_counts, allocated_new_token_counts
+    # 返回 forward_steps
+    return completions, generated_token_counts, allocated_new_token_counts, forward_steps
 
 
+# ============ 修改点 2: fallback 返回 0 ============
 def fast_generate_single_fallback(
     model,
     tokenizer,
@@ -515,7 +486,8 @@ def fast_generate_single_fallback(
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
         completions.append(text)
 
-    return completions, generated_token_counts, allocated_new_token_counts
+    total_forward_steps = sum(generated_token_counts)
+    return completions, generated_token_counts, allocated_new_token_counts, total_forward_steps
 
 
 def count_non_compilable(path: Path):
@@ -542,6 +514,7 @@ def count_non_compilable(path: Path):
     return len(bad), total
 
 
+# ============ 修改点 3: build_progress_payload 增加 TPF 字段 ============
 def build_progress_payload(
     *,
     args,
@@ -558,6 +531,8 @@ def build_progress_payload(
     message="",
     failed_extract_count=0,
     non_compilable_count=None,
+    total_forward_steps=None,    # 新增
+    token_per_forward=None,      # 新增
 ):
     now = time.time()
     wall_time_sec = max(0.0, now - wall_start_time)
@@ -567,7 +542,7 @@ def build_progress_payload(
     wall_tpf_sec = wall_time_sec / done_samples if done_samples > 0 else 0.0
     wall_tps = generated_tokens / wall_time_sec if wall_time_sec > 0 else 0.0
 
-    return {
+    payload = {
         "status": status,
         "message": message,
         "pid": os.getpid(),
@@ -586,6 +561,8 @@ def build_progress_payload(
         "tps": tps,
         "wall_tpf_sec": wall_tpf_sec,
         "wall_tps": wall_tps,
+        "total_forward_steps": total_forward_steps,
+        "token_per_forward": token_per_forward,
         "failed_extract_count": failed_extract_count,
         "non_compilable_count": non_compilable_count,
         "start_time": wall_start_time,
@@ -603,6 +580,7 @@ def build_progress_payload(
         "temperature": args.temperature,
         "dtype": args.dtype,
     }
+    return payload
 
 
 def main():
@@ -695,6 +673,7 @@ def main():
 
     total_batches = (len(items) + args.batch_size - 1) // args.batch_size
 
+    # 初始进度写盘（尚未有 forward steps）
     if progress_path is not None:
         atomic_write_json(
             progress_path,
@@ -711,6 +690,8 @@ def main():
                 gen_time_sec=0.0,
                 wall_start_time=wall_start_time,
                 message="Loading tokenizer/model",
+                total_forward_steps=0,        # 初始化为0
+                token_per_forward=0.0,
             ),
         )
 
@@ -785,6 +766,8 @@ def main():
                     gen_time_sec=0.0,
                     wall_start_time=wall_start_time,
                     message="Generating",
+                    total_forward_steps=0,
+                    token_per_forward=0.0,
                 ),
             )
 
@@ -794,6 +777,7 @@ def main():
         total_generated_tokens = 0
         total_allocated_new_tokens = 0
         total_generation_time_sec = 0.0
+        total_forward_steps = 0          # ← 新增累加器
 
         tqdm_disable = progress_path is not None
 
@@ -819,7 +803,8 @@ def main():
                 safe_cuda_synchronize(device)
                 gen_start = time.perf_counter()
 
-                completions, token_counts, allocated_counts = generate_fn(
+                # 解包新增的 forward_steps
+                completions, token_counts, allocated_counts, forward_steps = generate_fn(
                     model=model,
                     tokenizer=tokenizer,
                     prompts=prompts,
@@ -856,6 +841,10 @@ def main():
                 total_generated_tokens += int(sum(token_counts))
                 total_allocated_new_tokens += int(sum(allocated_counts))
                 total_generation_time_sec += gen_elapsed
+                total_forward_steps += int(forward_steps)   # ← 累加
+
+                # 计算当前 TPF
+                current_tpf = total_generated_tokens / total_forward_steps if total_forward_steps > 0 else 0.0
 
                 if progress_path is not None:
                     atomic_write_json(
@@ -874,6 +863,8 @@ def main():
                             wall_start_time=wall_start_time,
                             message="Generating",
                             failed_extract_count=len(failed_extract),
+                            total_forward_steps=total_forward_steps,
+                            token_per_forward=current_tpf,
                         ),
                     )
 
@@ -884,6 +875,12 @@ def main():
             print("First fallback task ids:", failed_extract[:20])
 
         non_compilable_count, _ = count_non_compilable(output_path)
+
+        # 最终打印 TPF
+        print(f"Generated tokens: {total_generated_tokens}")
+        print(f"Total forward steps: {total_forward_steps}")
+        if total_forward_steps > 0:
+            print(f"Token Per Forward (TPF): {total_generated_tokens / total_forward_steps:.4f}")
 
         if progress_path is not None:
             atomic_write_json(
@@ -903,6 +900,8 @@ def main():
                     message="Completed",
                     failed_extract_count=len(failed_extract),
                     non_compilable_count=non_compilable_count,
+                    total_forward_steps=total_forward_steps,
+                    token_per_forward=total_generated_tokens / total_forward_steps if total_forward_steps > 0 else 0.0,
                 ),
             )
 
@@ -924,6 +923,8 @@ def main():
                         gen_time_sec=0.0,
                         wall_start_time=wall_start_time,
                         message=f"{type(exc).__name__}: {exc}",
+                        total_forward_steps=0,
+                        token_per_forward=0.0,
                     ),
                 )
             except Exception:

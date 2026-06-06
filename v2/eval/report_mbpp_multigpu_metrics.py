@@ -24,6 +24,7 @@ def aggregate_progress(progress_files):
     done_samples = sum(int(x.get("done_samples", 0)) for x in rows)
     generated_tokens = sum(int(x.get("generated_tokens", 0)) for x in rows)
     allocated_new_tokens = sum(int(x.get("allocated_new_tokens", 0)) for x in rows)
+    total_forward_steps = sum(int(x.get("total_forward_steps", 0)) for x in rows)
     generation_time_sec = sum(float(x.get("generation_time_sec", 0.0)) for x in rows)
     failed_extract_count = sum(int(x.get("failed_extract_count", 0)) for x in rows)
     non_compilable_values = [
@@ -60,6 +61,10 @@ def aggregate_progress(progress_files):
         "total_samples": total_samples,
         "done_samples": done_samples,
         "generated_tokens": generated_tokens,
+        "total_forward_steps": total_forward_steps,                     # 新增
+        "token_per_forward": (                                          # 新增
+            generated_tokens / total_forward_steps if total_forward_steps else None
+        ),
         "allocated_new_tokens": allocated_new_tokens,
         "generation_time_sec_sum": generation_time_sec,
         "wall_time_sec": wall_time_sec,
@@ -241,6 +246,8 @@ def main():
     print(f"  shards completed/failed: {progress_metrics['completed_shards']}/{progress_metrics['failed_shards']}")
     print(f"  samples: {progress_metrics['done_samples']}/{progress_metrics['total_samples']}")
     print(f"  generated tokens: {progress_metrics['generated_tokens']}")
+    print(f"  total forward steps: {progress_metrics['total_forward_steps']}")
+    print(f"  token per forward (TPF): {fmt_float(progress_metrics['token_per_forward'], 4)} tokens/forward")
     print(f"  allocated new token slots: {progress_metrics['allocated_new_tokens']}")
     print(f"  wall time: {fmt_float(progress_metrics['wall_time_sec'], 2)} s")
     print(f"  summed GPU generation time: {fmt_float(progress_metrics['generation_time_sec_sum'], 2)} s")

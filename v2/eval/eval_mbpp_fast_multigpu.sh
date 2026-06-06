@@ -4,6 +4,7 @@
 #
 # 使用方法：
 # bash eval_mbpp_fast_multigpu.sh [METHOD] [THRESHOLD] [USE_BLOCK_CACHE] [REGENERATE] [NUM_GPUS] [LIMIT]
+# 注意：需要把路径替换为你训练出的模型路径，可以通过在下面自行添加文件夹路径实现
 #
 # 示例：
 # bash eval_mbpp_fast_multigpu.sh Fast
@@ -22,6 +23,9 @@
 # bash eval_mbpp_fast_multigpu.sh Qwen3_LL
 # bash eval_mbpp_fast_multigpu.sh Qwen3_LargeBlock
 # bash eval_mbpp_fast_multigpu.sh Qwen3_Clear
+# bash eval_mbpp_fast_multigpu.sh Qwen3_Step2000
+# bash eval_mbpp_fast_multigpu.sh Qwen3_Step800
+# bash eval_mbpp_fast_multigpu.sh Qwen3_Step400
 #
 # 参数说明：
 # METHOD: Fast / Qwen2.5 / Qwen2.5_LoRA / Qwen3
@@ -140,6 +144,26 @@ case "$METHOD" in
   Qwen3_Clear)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260603_192332/checkpoint-1000"
     ;;
+
+  Qwen3_Step400)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260604_215219/checkpoint-400"
+    ;;
+
+  Qwen3_Step800)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260604_215219/checkpoint-800"
+    ;;
+
+  Qwen3_Step1200)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260604_215219/checkpoint-1200"
+    ;;  
+
+  Qwen3_Step1600)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260604_215219/checkpoint-1600"
+    ;;  
+
+  Qwen3_Step2000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260604_215219/checkpoint-2000"
+    ;;  
 
   *)
     echo "Unknown METHOD: ${METHOD}" >&2

@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-output_model_dir="${HOME}/Codes/Fast-dLLM/v2/output_models/finetune_full_20260603_192332/checkpoint-1000" # 按需修改
+output_model_dir="${HOME}/Codes/Fast-dLLM/v2/output_models/finetune_full_20260604_215219/checkpoint-400" # 按需修改
 convert_script="${HOME}/Codes/Fast-dLLM/v2/train_scripts/convert_inplace_to_safetensors.py"
 
 delete_bin="true"

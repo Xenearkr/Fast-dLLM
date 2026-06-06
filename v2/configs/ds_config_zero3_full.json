@@ -26,7 +26,7 @@
       "stage3_max_live_parameters": 100000000,
       "stage3_max_reuse_distance": 100000000,
   
-      "stage3_gather_16bit_weights_on_model_save": false
+      "stage3_gather_16bit_weights_on_model_save": true
     },
   
     "gradient_accumulation_steps": "auto",
