@@ -19,8 +19,7 @@
 # bash eval_humaneval_fast_multigpu.sh Qwen3_LargeBlock
 # bash eval_humaneval_fast_multigpu.sh Qwen3_Clear
 # bash eval_humaneval_fast_multigpu.sh Qwen3_Step1200
-# bash eval_humaneval_fast_multigpu.sh Qwen3_Step800
-# bash eval_humaneval_fast multigpu.sh Qwen3_Step400
+# bash eval_humaneval_fast_multigpu.sh Nu_Step1500
 # 
 # 参数说明：
 # METHOD: Fast / Qwen2.5 / Qwen2.5_LoRA / Qwen3
@@ -273,7 +272,19 @@ case "$METHOD" in
 
   Qwen3_Step2000)
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260604_215219/checkpoint-2000"
-    ;;  
+    ;;
+
+  Nu_Step500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260606_145207/checkpoint-500"
+    ;;
+
+  Nu_Step1000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260606_145207/checkpoint-1000"
+    ;;
+
+  Nu_Step1500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260606_145207/checkpoint-1500"
+    ;;
 
   *)
     echo "Unknown METHOD: ${METHOD}" >&2

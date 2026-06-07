@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 # 配置你的数据路径
-INPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use")
+INPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1/train_conversation")
 
 def analyze_length_distribution():
     # 正则表达式：用于匹配并剔除思维链

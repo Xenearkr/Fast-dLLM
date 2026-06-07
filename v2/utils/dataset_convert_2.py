@@ -153,9 +153,9 @@ def output_first_n_responses(processed_dir: Path, n: int, output_txt: Optional[P
 
 if __name__ == "__main__":
     # 原始数据路径（输入）
-    INPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use")
+    INPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1/train_conversation")
     # 处理后输出路径
-    OUTPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/use")
+    OUTPUT_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1/use")
 
     # 1. 预处理所有文件（去掉所有 <think> 到 </think> 的内容）
     preprocess_all_files(INPUT_DIR, OUTPUT_DIR, file_pattern="train-*.json", suffix="-processed")
