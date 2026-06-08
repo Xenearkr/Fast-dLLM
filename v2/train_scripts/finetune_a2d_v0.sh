@@ -124,7 +124,7 @@ cmd="deepspeed ${deepspeed_args} \
     --preprocessing_num_workers 32 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --max_steps 1500 "
+    --max_steps 1000 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]

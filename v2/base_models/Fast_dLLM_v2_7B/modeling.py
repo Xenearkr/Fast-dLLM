@@ -43,6 +43,7 @@ def fused_flex_attention(q, k, v, mask=None):
     return flex_attention(q, k, v, block_mask=mask, enable_gqa=True)
 
 # Block-wise diffusion training 的 attention mask 定义
+# 整个掩码设计的核心
 def block_diff_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
     """
     Constructs the specialized block diffusion attention mask for training
@@ -53,39 +54,46 @@ def block_diff_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
 
     Args:
         b, h: Batch and head indices (ignored for mask logic).
-        q_idx, kv_idx: Query and Key indices.
-        seq_len: Total sequence length.
+        q_idx, kv_idx: Query and Key indices. 查询token的索引、键token的索引，范围 0 ~ 2L-1
+        n=seq_len: Total sequence length. 单个干净样本的长度 L，即 x_t 和 x_0 各自的长度
         block_size: Defines the block structure.
 
     Returns:
         A boolean attention mask.
     """
-    # Indicate whether token belongs to xt or x0
+    # 1. 区分视图：标记 q, k 属于 x_t 还是 x_0
     x0_flag_q = (q_idx >= n)
     x0_flag_kv = (kv_idx >= n)
 
-    # Compute block indices
+    # 2. 计算块索引
     block_q = torch.where(x0_flag_q == 1,
-                        (q_idx - n) // block_size,
-                        q_idx // block_size)
+                        (q_idx - n) // block_size, # x_0的块索引：从0开始（相对x_0自己的开头）
+                        q_idx // block_size)       # x_t的块索引：从0开始（相对x_t自己的开头）
     block_kv = torch.where(x0_flag_kv == 1,
                         (kv_idx - n) // block_size,
                         kv_idx // block_size)
 
-    # **1. Block Diagonal Mask (M_BD) **
+    # 3. 生成三部分子掩码
+    # 设计意图：训练时 x_t 的上下文结构，与推理时当前解码块的上下文结构完全相同
+    # 规则：严格限制 x_t 只能看到自己块内和 x_0 的更早块
+
+    # **3.1 Block Diagonal Mask (M_BD) ** 块对角掩码 M_BD（同一块内双向注意力）
+    # 只有当查询和键属于同一个视图的同一个块时，才允许注意力
     block_diagonal = (block_q == block_kv) & (x0_flag_q == x0_flag_kv)
 
-    # **2. Offset Block-Causal Mask (M_OBC) **
+    # **3.2 Offset Block-Causal Mask (M_OBC) ** 偏移块因果掩码 M_OBC（x_t 依赖 x_0 的更早块）
+    # 只有当查询属于 x_t、键属于 x_0、且查询的块索引大于键的块索引时，才允许注意力
     offset_block_causal = (
     (block_q > block_kv)
     & (x0_flag_kv == 1)
     & (x0_flag_q == 0)
     )
 
-    # **3. Block-Causal Mask (M_BC) **
+    # **3.3 Block-Causal Mask (M_BC) ** 块因果掩码 M_BC（x_0 内部块级因果）
+    # 只有当查询和键都属于 x_0、且查询的块索引大于等于键的块索引时，才允许注意力
     block_causal = (block_q >= block_kv) & (x0_flag_kv == 1) & (x0_flag_q == 1)
 
-    # **4. Combine Masks **
+    # 4. 合并所有掩码，将三个掩码取或
     return block_diagonal | offset_block_causal | block_causal
 
 def eval_block_diff_mask(q_idx, kv_idx, block_size=None):
@@ -198,14 +206,17 @@ class Fast_dLLM_QwenAttention(nn.Module):
         cos, sin = position_embeddings
         # query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
         if self.training:
-            #split q into two parts
+            # 将 q, k 拆分为前 L 位（x_t）和后 L 位（x_0）两部分
+            # split q into two parts
             q_1 = query_states[:,:,:query_states.shape[2]//2]
             q_2 = query_states[:,:,query_states.shape[2]//2:]
-            #split k into two parts
+            # split k into two parts
             k_1 = key_states[:,:,:key_states.shape[2]//2]
             k_2 = key_states[:,:,key_states.shape[2]//2:]
+            # 分别应用相同的位置编码（因为x_t和x_0是同一个序列的不同视图）
             q_1, k_1 = apply_rotary_pos_emb(q_1, k_1, cos, sin)
             q_2, k_2 = apply_rotary_pos_emb(q_2, k_2, cos, sin)
+            # 拼接回 2L 视图
             query_states = torch.cat((q_1, q_2), dim=-2)
             key_states = torch.cat((k_1, k_2), dim=-2)
         else:
@@ -234,6 +245,7 @@ class Fast_dLLM_QwenAttention(nn.Module):
                 value_states = torch.cat((past_key_value[self.layer_idx][1], value_states), dim=-2)
 
         if self.training:
+            # 使用编译优化的 flex_attention，传入预生成的块掩码
             attn_output = fused_flex_attention(query_states, key_states, value_states, mask=attention_mask)
             attn_output = attn_output.transpose(1, 2).contiguous()
         else:
@@ -285,11 +297,15 @@ class Fast_dLLM_QwenDecoderLayer(GradientCheckpointingLayer):
         super().__init__()
         self.hidden_size = config.hidden_size
 
+        # 子层1：自注意力层
         self.self_attn = Fast_dLLM_QwenAttention(config=config, layer_idx=layer_idx)
-
+        # 子层2：MLP前馈网络
         self.mlp = Fast_dLLM_QwenMLP(config)
+        # 输入层归一化
         self.input_layernorm = Fast_dLLM_QwenRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        # 注意力后层归一化
         self.post_attention_layernorm = Fast_dLLM_QwenRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        # 唯一的层间差异：部分层使用滑动窗口注意力
         self.attention_type = config.layer_types[layer_idx]
 
     def forward(
@@ -438,6 +454,9 @@ class Fast_dLLM_QwenModel(Fast_dLLM_QwenPreTrainedModel):
         return mask
 
     def gen_mask(self, seqlen, block_size, B, H):
+        # 引入 flex_attention 配套工具 create_block_mask
+        # 输入：自定义的掩码判断函数（block_diff_mask），以及 batch size、head 数、query 长度、key 长度
+        # 输出：BlockMask 对象（不是普通布尔张量），能被 flex_attention 硬件加速，比普通掩码快 10 倍以上
         mask = create_block_mask(
             partial(block_diff_mask, block_size=block_size, n=seqlen),
             B=B, H=H, Q_LEN=seqlen*2, KV_LEN=seqlen*2)
@@ -453,39 +472,70 @@ class Fast_dLLM_QwenModel(Fast_dLLM_QwenPreTrainedModel):
         past_key_values: Optional[Cache] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
         use_cache: Optional[bool] = None,
-        cache_position: Optional[torch.LongTensor] = None,
-        update_past_key_values: Optional[bool] = False,
+        cache_position: Optional[torch.LongTensor] = None, # 缓存位置索引
+        update_past_key_values: Optional[bool] = False,    # 是否更新普通 KV 缓存
         block_size: Optional[int] = 32,
-        use_block_cache: Optional[bool] = False,
+        use_block_cache: Optional[bool] = False,           # 是否复用sub-block-cache
         block_past_key_values: Optional[Cache] = None,
         replace_position: Optional[int] = None,
         **kwargs
     ) -> BaseModelOutputWithPast:
+        """
+        传入参数解读：
+        参数名	作用	训练模式	推理模式
+        input_ids*	输入 token ID 序列	✅ 形状[2B, 2L]（x_t+x_0 拼接）	✅ 形状[B, L]（当前块序列）
+        inputs_embeds*	预计算的词嵌入向量（二选一）	❌ 几乎不用	❌ 几乎不用
+        labels*	监督标签	✅ 形状[2B, L]（仅 x_t 部分有效）	❌ 不用
+        attention_mask	外部传入的注意力掩码	❌ 内部自动生成	✅ 可选传入
+        position_ids	外部传入的位置 ID	❌ 内部自动生成	✅ 可选传入
+        （下面参数都与缓存控制有关）
+        use_cache	是否启用普通块级 KV 缓存	❌ 始终 False	✅ 始终 True
+        past_key_values	已解码块的 KV 缓存	❌ None	✅ DynamicCache 对象
+        update_past_key_values	是否更新普通 KV 缓存	❌ False	✅ 解码完一个块后设为 True
+        use_block_cache	是否启用子块级缓存（Fast-dLLM 特有）	❌ False	✅ 块内 refine 时启用
+        block_past_key_values	当前块内的子块 KV 缓存	❌ None	✅ DynamicCache 对象
+        replace_position	子块缓存的替换位置	❌ None	✅ 子块起始索引
+        cache_position	缓存位置索引	❌ 内部自动生成	✅ 可选传入
+        """
+        # 强制要求只能传入input_ids或inputs_embeds中的一个，不能同时传或都不传
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
+        # 2.1 词嵌入
+        # 训练模式：输入input_ids: [2B, 2L] → 输出inputs_embeds: [2B, 2L, hidden_size]
+        # 推理模式：输入input_ids: [B, L] → 输出inputs_embeds: [B, L, hidden_size]
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+        # 缓存初始化
+        # 训练模式：use_cache和use_block_cache始终为 False，因此这两个缓存都是 None，不占用显存
+        # 推理模式：解码第一个块时初始化两个空Cache，后续块解码复用past_key_values，块内refine复用block_past_key_values
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache()
-
         if use_block_cache and block_past_key_values is None:
             block_past_key_values = DynamicCache()
 
+        # 2.2 生成 cache_position 和 position_ids
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             if self.training:
+                # 训练模式：输入是2L长度，但只生成L长度的cache_position
                 cache_position = torch.arange(
                     past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]//2, device=inputs_embeds.device
                 )
             else:
+                # 推理模式，两种分支
                 if use_block_cache:
+                    # 推理+子块缓存模式：从replace_position开始生成位置ID
+                    # replace_position表示当前子块在整个块中的起始索引
+                    # 只更新缓存中对应子块位置的 KV，实现子块级增量计算
                     block_start_position = past_seen_tokens+replace_position if replace_position is not None else past_seen_tokens
                     cache_position = torch.arange(
                         block_start_position, block_start_position + inputs_embeds.shape[1], device=inputs_embeds.device
                     )
                 else:
+                    # 推理+无子块缓存模式：从past_seen_tokens开始生成
+                    # cache_position从已解码的总 token 数past_seen_tokens开始，长度等于当前输入长度
                     cache_position = torch.arange(
                         past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1] if not self.training else inputs_embeds.shape[1]//2, device=inputs_embeds.device
                     )
@@ -493,19 +543,25 @@ class Fast_dLLM_QwenModel(Fast_dLLM_QwenPreTrainedModel):
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
         
+        # 2.3 (key) 生成训练专用混合注意力掩码 M_full
         if self.training:
+            # 训练模式：生成混合块注意力掩码 M_full，调用 gen_mask
             attention_mask = self.gen_mask(labels.shape[1], self.bd_size, labels.shape[0], self.config.num_attention_heads).to(device=inputs_embeds.device)
         else:
             if use_block_cache and block_past_key_values.get_seq_length() != 0:
+                # 推理+子块缓存已初始化：无需掩码，直接复用缓存
                 attention_mask = None
             else:
+                # 推理+无缓存/缓存为空：生成块因果掩码
                 attention_mask = self.eval_mask(input_ids.shape[1], block_size, past_key_values.get_seq_length() if past_key_values is not None else 0).to(device=inputs_embeds.device)
 
         hidden_states = inputs_embeds
 
+        # 2.4 生成 RoPE 位置编码，调用Fast_dLLM_QwenRotaryEmbedding.forward()
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
 
+        # 逐层调用 Transformer 解码器层，共执行config.num_hidden_layers次
         for decoder_layer in self.layers[: self.config.num_hidden_layers]:
             hidden_states = decoder_layer(
                 hidden_states,
@@ -522,11 +578,12 @@ class Fast_dLLM_QwenModel(Fast_dLLM_QwenPreTrainedModel):
                 **kwargs,
             )
 
+        # 最终层归一化
         hidden_states = self.norm(hidden_states)
         return BaseModelOutputWithPastAndBlockCache(
-            last_hidden_state=hidden_states,
-            past_key_values=past_key_values if use_cache else None,
-            block_past_key_values=block_past_key_values if use_block_cache else None,
+            last_hidden_state=hidden_states, # 主干模型输出的最终隐藏状态
+            past_key_values=past_key_values if use_cache else None, # 块级 KV 缓存，存储已完全解码的历史块
+            block_past_key_values=block_past_key_values if use_block_cache else None, # 子块级 KV 缓存，存储当前正在解码的块
         )
 
 
@@ -584,43 +641,59 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
     ) -> CausalLMOutputWithPastAndBlockCache:
 
         if self.training:
+            # 训练分支 forward
             original_labels = labels.clone()
             original_input_ids = input_ids.clone()
 
             noisy_input_ids = input_ids.clone()
 
-            input_ids = input_ids.reshape(input_ids.shape[0] * input_ids.shape[1] // self.model.bd_size, self.model.bd_size)
+            # 1.1 按块划分，生成随机掩码
+            input_ids = input_ids.reshape(input_ids.shape[0] * input_ids.shape[1] // self.model.bd_size, self.model.bd_size) # [B*l/32, 32]
             b, l = input_ids.shape
-            t = torch.rand((b,), device=input_ids.device)
+            t = torch.rand((b,), device=input_ids.device) # 每个块独立采样掩码率 t~U(0,1)
             eps=1e-3
-            p_mask = (1 - eps) * t + eps
+            p_mask = (1 - eps) * t + eps # 掩码率范围 [eps, 1-eps]
             p_mask = p_mask[:, None].repeat(1, l)
 
-            mask_indices = torch.rand((b, l), device=input_ids.device) < p_mask
+            mask_indices = torch.rand((b, l), device=input_ids.device) < p_mask # 生成块内掩码
+
+            # 1.2 生成第一个噪声视图
             x_t = torch.where(mask_indices, mask_id, input_ids).reshape(labels.shape)
-            noisy_input_ids[labels != -100] = x_t[labels != -100]
+            noisy_input_ids[labels != -100] = x_t[labels != -100] # 仅对labels不是-100的非填充token使用掩码
             mask = (noisy_input_ids != mask_id)
-            labels[mask] = -100
+            labels[mask] = -100 # 非掩码位置标签设为-100，不计算损失
+
+            # 1.3 拼接 x_t 和 x_0，得到长度为 2L 的输入
             input_ids = torch.cat([noisy_input_ids, input_ids.reshape(labels.shape)], dim=1)
 
+            # 1.4 生成互补视图
             complementary_noisy_input_ids = original_input_ids.clone()
             complementary_labels = original_labels.clone()
 
             complementary_input_ids = original_input_ids.reshape(original_input_ids.shape[0] * original_input_ids.shape[1] // self.model.bd_size, self.model.bd_size)
 
-            complementary_mask_indices = ~mask_indices
+            complementary_mask_indices = ~mask_indices # 掩码取反
             complementary_x_t = torch.where(complementary_mask_indices, mask_id, complementary_input_ids).reshape(labels.shape)
             complementary_noisy_input_ids[complementary_labels != -100] = complementary_x_t[complementary_labels != -100]
             complementary_mask = (complementary_noisy_input_ids != mask_id)
             complementary_labels[complementary_mask] = -100
             complementary_input_ids = torch.cat([complementary_noisy_input_ids, complementary_input_ids.reshape(complementary_labels.shape)], dim=1)
 
+            # 1.5 拼接两个互补视图到同一个batch，batch_size翻倍为2B
             input_ids = torch.cat([input_ids, complementary_input_ids], dim=0)
             labels = torch.cat([labels, complementary_labels], dim=0)
 
+            # 最终输入形状：[2B, 2L]
+            # 前 B 个样本是掩码 m 的视图，后 B 个是掩码 ~m 的视图
+            # 每个样本前 L 位是 x_t，后 L 位是 x_0
+
+            # labels的语义：
+            # 如果x_t中该位置被遮蔽成了mask_id，则label对应位置保留原本真实token ID
+            # 如果x_t未被遮蔽，则对应位置为-100
+
         outputs: BaseModelOutputWithPastAndBlockCache = self.model(
-            input_ids=input_ids,
-            labels=labels,
+            input_ids=input_ids, # 形状：[2B, 2L]
+            labels=labels, # 形状：[2B, L]，因为后面是 x_0，没必要给loss监督信号
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
@@ -635,8 +708,12 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
             **kwargs,
         )
 
+        # 得到outputs之后：logits 提取与损失计算
+
         hidden_states = outputs.last_hidden_state
         if self.training:
+            # 仅取前 L 位（x_t 对应的部分）计算 logits，x_0 部分丢弃
+            # 推理时没有这一步，因为其input本来就是 L 长的
             hidden_states = hidden_states[:, :hidden_states.shape[1]//2, :]
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
@@ -644,6 +721,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
 
         loss = None
         if labels is not None:
+            # 仅计算 labels != -100 的位置（即掩码位置）的交叉熵损失
             loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
 
         return CausalLMOutputWithPastAndBlockCache(

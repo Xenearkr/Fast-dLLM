@@ -177,12 +177,14 @@ class Finetuner(BaseTuner):
             # Concatenate all texts.
             if pad_mask_token:
                 for i in range(len(examples['input_ids'])):
+                    # 计算需要填充的长度，使每个样本长度为bd_size的整数倍
                     pad_length = bd_size - len(examples['input_ids'][i]) % bd_size
+                    # 填充：labels 填充 -100（不计算损失）；attn_mask 填充 0（不参与注意力计算）；input_ids 填充 mask_token_id
                     examples['labels'][i].extend([-100] * pad_length)
                     examples['attention_mask'][i].extend([0] * pad_length)
                     examples['input_ids'][i].extend([mask_token_id] * pad_length)
 
-                # concat
+                # concat 所有样本拼接成长token流
                 concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
 
             else:
@@ -192,7 +194,7 @@ class Finetuner(BaseTuner):
             # supported it instead of this drop, you can customize this part to
             # your needs.
             total_length = (total_length // block_size) * block_size
-            # Split by chunks of max_len.
+            # Split by chunks of max_len. 切割为固定长度的训练块
             result = {
                 k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
                 for k, t in concatenated_examples.items()
@@ -212,6 +214,7 @@ class Finetuner(BaseTuner):
             if data_args.disable_group_texts:
                 group_batch_size = 1
             if not data_args.streaming:
+                # 批量执行分块（多进程加速）
                 lm_datasets = tokenized_datasets.map(
                     group_texts,
                     batched=True,
@@ -459,15 +462,20 @@ class Finetuner(BaseTuner):
             dataset = copy.deepcopy(dataset)
 
         # Tokenization and text grouping must be done in the main process
+        # Token 化 + 块对齐分块
         if dataset.backend == "custom_multi_modal":
+            # 多模块数据集，特殊处理（Fast-dLLM-v2不使用）
             dataset.backend_dataset.register_tokenizer(
                 model.tokenizer,
                 getattr(model, "image_processor", None),
             )
             lm_dataset = dataset
         else:
+            # 纯文本数据集标准流程
             with finetuner_args.main_process_first(desc="dataset map tokenization"):
+                # 1. 文本 Token 化
                 tokenized_dataset = model.tokenize(dataset)
+                # 2. 块对齐分块，调用 group_text
                 if data_args.disable_group_texts:
                     lm_dataset = tokenized_dataset
                 else:
@@ -479,6 +487,7 @@ class Finetuner(BaseTuner):
         train_dataset = lm_dataset.get_backend_dataset()
         logger.info(f"Number of train samples: {len(train_dataset)}")
 
+        # 验证集（可选）
         if finetuner_args.do_eval:
             eval_dataset_args = deepcopy(data_args)
             eval_dataset_args.dataset_path = finetuner_args.eval_dataset_path
@@ -512,6 +521,7 @@ class Finetuner(BaseTuner):
                 preds = preds[:, :-1].reshape(-1)
                 return metric.compute(predictions=preds, references=labels)
 
+        # 训练集采样（可选）
         if finetuner_args.do_train:
             if data_args.max_train_samples is not None:
                 max_train_samples = min(len(train_dataset), data_args.max_train_samples)
@@ -521,9 +531,11 @@ class Finetuner(BaseTuner):
         training_args = finetuner_args
 
         if model_args.use_lora:
+            # lora
             FinetuningTrainer = PeftTrainer
             trainer_callbacks = [PeftSavingCallback]
         else:
+            # 全量微调
             FinetuningTrainer = Trainer
             trainer_callbacks = []
         if data_collator is None:
@@ -535,6 +547,7 @@ class Finetuner(BaseTuner):
                 BaseTrainer, model_args
             )
 
+        # 启用lisa（可选）
         if training_args.use_lisa:
             class DynamicLayerActivationCallback(TrainerCallback):
                 def __init__(self, n_layers, interval_steps, model):
@@ -596,6 +609,7 @@ class Finetuner(BaseTuner):
 
             trainer_callbacks.append(dynamic_layer_activation_callback)
 
+        # 初始化最终 Trainer
         trainer = FinetuningTrainer(
             model=model.get_backend_model(),
             args=training_args,
@@ -610,22 +624,27 @@ class Finetuner(BaseTuner):
         )
         # Training
         if training_args.do_train:
+            # 断点续训逻辑
             checkpoint = None
             last_checkpoint = self.last_checkpoint
             if training_args.resume_from_checkpoint is not None:
                 checkpoint = training_args.resume_from_checkpoint
             elif last_checkpoint is not None:
                 checkpoint = last_checkpoint
+
+            # 启动训练循环 ⭐
             train_result = trainer.train(resume_from_checkpoint=checkpoint)
 
             if not model_args.use_lora:
+                # 全量微调：模型保存
                 trainer.save_model()  # Saves the tokenizer too for easy upload
             else:
+                # LoRA：模型保存
                 if model_args.save_aggregated_lora:
                     print("[Check] Merge-LoRA")
                     model.merge_lora_weights()
                 model.save(finetuner_args.output_dir, model_args.save_aggregated_lora)
-            # save language_projection for multi-modal model;
+            # save language_projection for multi-modal model; 多模态模型保存
             if self.finetuner_args.save_language_projection:
                 language_projection_state = trainer.model.language_projection.state_dict()
                 torch.save(
@@ -633,6 +652,8 @@ class Finetuner(BaseTuner):
                         self.finetuner_args.output_dir,
                         "language_projection.pth"),
                     language_projection_state)
+
+            # 保存训练指标和状态
             metrics = train_result.metrics
 
             max_train_samples = (
@@ -644,6 +665,7 @@ class Finetuner(BaseTuner):
             trainer.save_metrics("train", metrics)
             trainer.save_state()
 
+        # 模型卡片生成 + 可选Hub推送
         kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-generation"}
         if data_args.dataset_name is not None:
             kwargs["dataset_tags"] = data_args.dataset_name
