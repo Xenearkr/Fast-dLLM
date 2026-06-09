@@ -1,0 +1,695 @@
+Model:   /home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full
+Dataset: data/Llama-Nemotron-code-v1.1/trajectory/train_conversation
+Output:  output_models/finetune_trajectory_20260606_072745
+deepspeed --num_nodes=1 --num_gpus=8 --master_port=11002   train_scripts/finetune_trajectory.py     --model_name_or_path /home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full     --trust_remote_code 1     --dataset_path data/Llama-Nemotron-code-v1.1/trajectory/train_conversation     --output_dir output_models/finetune_trajectory_20260606_072745          --conversation_template fast_dllm_v2     --num_train_epochs 1     --learning_rate 1e-5     --lr_scheduler_type constant_with_warmup     --warmup_ratio 0.03     --disable_group_texts 1     --block_size 128     --block_mask_num_schedule True     --block_mask_num_start 1     --per_device_train_batch_size 1     --gradient_accumulation_steps 8     --deepspeed configs/ds_config_zero3.json     --bf16     --run_name finetune_trajectory     --validation_split_percentage 0     --logging_steps 1     --do_train     --ddp_timeout 72000     --save_strategy steps     --save_steps 500     --dataloader_num_workers 8     --preprocessing_num_workers 32     --save_total_limit 3     --use_flash_attention 1     --gradient_checkpointing 1
+[2026-06-06 07:27:51,217] [WARNING] [runner.py:232:fetch_hostfile] Unable to find hostfile, will proceed with training with local resources only.
+Detected VISIBLE_DEVICES=0,1,2,3,4,5,6,7 but ignoring it because one or several of --include/--exclude/--num_gpus/--num_nodes cl args were used. If you want to use CUDA_VISIBLE_DEVICES don't pass any of these arguments to deepspeed.
+[2026-06-06 07:27:51,217] [INFO] [runner.py:630:main] cmd = /home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10 -u -m deepspeed.launcher.launch --world_info=eyJsb2NhbGhvc3QiOiBbMCwgMSwgMiwgMywgNCwgNSwgNiwgN119 --master_addr=127.0.0.1 --master_port=11002 --enable_each_rank_log=None --log_level=info train_scripts/finetune_trajectory.py --model_name_or_path /home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full --trust_remote_code 1 --dataset_path data/Llama-Nemotron-code-v1.1/trajectory/train_conversation --output_dir output_models/finetune_trajectory_20260606_072745 --conversation_template fast_dllm_v2 --num_train_epochs 1 --learning_rate 1e-5 --lr_scheduler_type constant_with_warmup --warmup_ratio 0.03 --disable_group_texts 1 --block_size 128 --block_mask_num_schedule True --block_mask_num_start 1 --per_device_train_batch_size 1 --gradient_accumulation_steps 8 --deepspeed configs/ds_config_zero3.json --bf16 --run_name finetune_trajectory --validation_split_percentage 0 --logging_steps 1 --do_train --ddp_timeout 72000 --save_strategy steps --save_steps 500 --dataloader_num_workers 8 --preprocessing_num_workers 32 --save_total_limit 3 --use_flash_attention 1 --gradient_checkpointing 1
+[2026-06-06 07:27:55,764] [INFO] [launch.py:162:main] WORLD INFO DICT: {'localhost': [0, 1, 2, 3, 4, 5, 6, 7]}
+[2026-06-06 07:27:55,764] [INFO] [launch.py:168:main] nnodes=1, num_local_procs=8, node_rank=0
+[2026-06-06 07:27:55,764] [INFO] [launch.py:179:main] global_rank_mapping=defaultdict(<class 'list'>, {'localhost': [0, 1, 2, 3, 4, 5, 6, 7]})
+[2026-06-06 07:27:55,764] [INFO] [launch.py:180:main] dist_world_size=8
+[2026-06-06 07:27:55,764] [INFO] [launch.py:184:main] Setting CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+[2026-06-06 07:27:55,765] [INFO] [launch.py:272:main] process 293265 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=0', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+[2026-06-06 07:27:55,766] [INFO] [launch.py:272:main] process 293266 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=1', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+[2026-06-06 07:27:55,767] [INFO] [launch.py:272:main] process 293267 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=2', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+[2026-06-06 07:27:55,768] [INFO] [launch.py:272:main] process 293268 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=3', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+[2026-06-06 07:27:55,769] [INFO] [launch.py:272:main] process 293269 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=4', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+[2026-06-06 07:27:55,770] [INFO] [launch.py:272:main] process 293270 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=5', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+[2026-06-06 07:27:55,771] [INFO] [launch.py:272:main] process 293271 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=6', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+[2026-06-06 07:27:55,771] [INFO] [launch.py:272:main] process 293272 spawned with command: ['/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10', '-u', 'train_scripts/finetune_trajectory.py', '--local_rank=7', '--model_name_or_path', '/home/u-chenx/Fast-dLLM/v2/base_models/Fast_dLLM_v2_7B_full', '--trust_remote_code', '1', '--dataset_path', 'data/Llama-Nemotron-code-v1.1/trajectory/train_conversation', '--output_dir', 'output_models/finetune_trajectory_20260606_072745', '--conversation_template', 'fast_dllm_v2', '--num_train_epochs', '1', '--learning_rate', '1e-5', '--lr_scheduler_type', 'constant_with_warmup', '--warmup_ratio', '0.03', '--disable_group_texts', '1', '--block_size', '128', '--block_mask_num_schedule', 'True', '--block_mask_num_start', '1', '--per_device_train_batch_size', '1', '--gradient_accumulation_steps', '8', '--deepspeed', 'configs/ds_config_zero3.json', '--bf16', '--run_name', 'finetune_trajectory', '--validation_split_percentage', '0', '--logging_steps', '1', '--do_train', '--ddp_timeout', '72000', '--save_strategy', 'steps', '--save_steps', '500', '--dataloader_num_workers', '8', '--preprocessing_num_workers', '32', '--save_total_limit', '3', '--use_flash_attention', '1', '--gradient_checkpointing', '1']
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/home/u-chenx/Fast-dLLM/third_party/lmflow/utils/versioning.py:7: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Consider install flash_attn for better performance.
+Consider install flash_attn for better performance.
+Consider install flash_attn for better performance.
+Consider install flash_attn for better performance.
+Consider install flash_attn for better performance.
+Consider install flash_attn for better performance.
+Consider install flash_attn for better performance.
+Consider install flash_attn for better performance.
+Flash attention is not available in the current environment. Disabling flash attention.
+Flash attention is not available in the current environment. Disabling flash attention.
+Flash attention is not available in the current environment. Disabling flash attention.
+Flash attention is not available in the current environment. Disabling flash attention.
+Flash attention is not available in the current environment. Disabling flash attention.
+Flash attention is not available in the current environment. Disabling flash attention.
+Flash attention is not available in the current environment. Disabling flash attention.
+Flash attention is not available in the current environment. Disabling flash attention.
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 7, device: cuda:7, n_gpu: 1,distributed training: True, 16-bits training: False
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 6, device: cuda:6, n_gpu: 1,distributed training: True, 16-bits training: False
+Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 2568.47it/s]
+Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 1849.34it/s]
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 5, device: cuda:5, n_gpu: 1,distributed training: True, 16-bits training: False
+Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 2493.64it/s]
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 1, device: cuda:1, n_gpu: 1,distributed training: True, 16-bits training: False
+Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 1754.94it/s]
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 3, device: cuda:3, n_gpu: 1,distributed training: True, 16-bits training: False
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 4, device: cuda:4, n_gpu: 1,distributed training: True, 16-bits training: False
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 0, device: cuda:0, n_gpu: 1,distributed training: True, 16-bits training: False
+Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 1898.73it/s]
+Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 2532.79it/s]
+Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 1757.88it/s]
+06/06/2026 07:28:04 - WARNING - lmflow.pipeline.finetuner - Process rank: 2, device: cuda:2, n_gpu: 1,distributed training: True, 16-bits training: False
+Checking dataset keys:   0%|          | 0/1 [00:00<?, ?it/s]Checking dataset keys: 100%|██████████| 1/1 [00:00<00:00, 1818.08it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.48s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.49s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.50s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.48s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.48s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.49s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.48s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.55s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.44s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.44s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.44s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.44s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.44s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.44s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.44s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.48s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.41s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.09s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.10s/it]
+
+Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.09s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.09s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.09s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.09s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.09s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.04it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.15s/it]
+06/06/2026 07:28:11 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+data_args.conversation_template: fast_dllm_v2
+conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+
+06/06/2026 07:28:11 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+data_args.conversation_template: fast_dllm_v2data_args.conversation_template: fast_dllm_v2
+
+conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+
+self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+
+data_args.conversation_template: fast_dllm_v2
+
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}data_args.conversation_template: fast_dllm_v2
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+
+self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+
+self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+
+data_args.conversation_template: fast_dllm_v2
+conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}data_args.conversation_template: fast_dllm_v2
+
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - Conversation template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+
+
+self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+data_args.conversation_template: fast_dllm_v2
+conversation_template: {%- if tools %}{{- '<|im_start|>system\n' }}{%- if messages[0]['role'] == 'system' %}{{- messages[0]['content'] }}{%- else %}{{- 'You are a helpful assistant.' }}{%- endif %}{{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}{%- for tool in tools %}{{- "\n" }}{{- tool | tojson }}{%- endfor %}{{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}{%- else %}{%- if messages[0]['role'] == 'system' %}{{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}{%- else %}{{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{%- endif %}{%- endif %}{%- for message in messages %}{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}{%- if message.role == "assistant" %}{{- '<|im_start|>' + message.role + '\n' }}{% generation %}{{ message.content + '<|im_end|>' + '\n' }}{% endgeneration %}{%- else %}{{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}{%- endif %}{%- elif message.role == "assistant" %}{{- '<|im_start|>' + message.role }}{%- if message.content %}{% generation %}{{- '\n' + message.content }}{% endgeneration %}{%- endif %}{%- for tool_call in message.tool_calls %}{%- if tool_call.function is defined %}{%- set tool_call = tool_call.function %}{%- endif %}{% generation %}{{- '\n<tool_call>\n{"name": "' }}{{- tool_call.name }}{{- '", "arguments": ' }}{{- tool_call.arguments | tojson }}{{- '}\n</tool_call>' }}{% endgeneration %}{%- endfor %}{% generation %}{{- '<|im_end|>\n' }}{% endgeneration %}{%- elif message.role == "tool" %}{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}{{- '<|im_start|>user' }}{%- endif %}{{- '\n<tool_response>\n' }}{{- message.content }}{{- '\n</tool_response>' }}{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}{{- '<|im_end|>\n' }}{%- endif %}{%- endif %}{%- endfor %}{%- if add_generation_prompt %}{{- '<|im_start|>assistant\n' }}{%- endif %}
+self.tokenizer.chat_template: {%- if tools %}
+    {{- '<|im_start|>system\n' }}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- messages[0]['content'] }}
+    {%- else %}
+        {{- 'You are a helpful assistant.' }}
+    {%- endif %}
+    {{- "\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>" }}
+    {%- for tool in tools %}
+        {{- "\n" }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- "\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call><|im_end|>\n" }}
+{%- else %}
+    {%- if messages[0]['role'] == 'system' %}
+        {{- '<|im_start|>system\n' + messages[0]['content'] + '<|im_end|>\n' }}
+    {%- else %}
+        {{- '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}
+    {%- endif %}
+{%- endif %}
+{%- for message in messages %}
+    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>' + '\n' }}
+    {%- elif message.role == "assistant" %}
+        {{- '<|im_start|>' + message.role }}
+        {%- if message.content %}
+            {{- '\n' + message.content }}
+        {%- endif %}
+        {%- for tool_call in message.tool_calls %}
+            {%- if tool_call.function is defined %}
+                {%- set tool_call = tool_call.function %}
+            {%- endif %}
+            {{- '\n<tool_call>\n{"name": "' }}
+            {{- tool_call.name }}
+            {{- '", "arguments": ' }}
+            {{- tool_call.arguments | tojson }}
+            {{- '}\n</tool_call>' }}
+        {%- endfor %}
+        {{- '<|im_end|>\n' }}
+    {%- elif message.role == "tool" %}
+        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+        {{- '\n<tool_response>\n' }}
+        {{- message.content }}
+        {{- '\n</tool_response>' }}
+        {%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+            {{- '<|im_end|>\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\n' }}
+{%- endif %}
+
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+06/06/2026 07:28:20 - WARNING - lmflow.models.hf_decoder_model - block_size 128 < model_max_length 131072, use block_size for maximum tokenized sequence length.
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/datasets/table.py:1421: FutureWarning: promote has been superseded by promote_options='default'.
+  table = cls._concat_blocks(blocks, axis=0)
+06/06/2026 07:28:20 - WARNING - accelerate.accelerator - [RANK 0] Gradient accumulation steps mismatch: GradientAccumulationPlugin has 1, DeepSpeed config has 8. Using DeepSpeed's value.
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+[truncate_tokenized_dataset] max_length=128, input_ids truncated 0, padded 0 / 10000 samples (len after: 128-128), trajectory len 128 (pad=-1)
+/home/u-chenx/Fast-dLLM/third_party/lmflow/pipeline/finetuner.py:603: FutureWarning: `tokenizer` is deprecated and will be removed in version 5.0.0 for `Trainer.__init__`. Use `processing_class` instead.
+  trainer = FinetuningTrainer(
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+[93m [WARNING] [0m DeepSpeed Op Builder: Installed CUDA version 13.2 does not match the version torch was compiled with 13.0.Detected `DS_SKIP_CUDA_CHECK=1`: Allowing this combination of CUDA, but it may result in unexpected behavior.
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/u-chenx/.netrc.
+wandb: Currently logged in as: nixnehc2006 (nixnehc2006-nanjing-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.27.0
+wandb: Run data is saved locally in /home/u-chenx/Fast-dLLM/v2/wandb/run-20260606_072840-82b0ponl
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run finetune_trajectory
+wandb: ⭐️ View project at https://wandb.ai/nixnehc2006-nanjing-university/huggingface
+wandb: 🚀 View run at https://wandb.ai/nixnehc2006-nanjing-university/huggingface/runs/82b0ponl
+  0%|          | 0/157 [00:00<?, ?it/s][2026-06-06 07:29:12,161] [INFO] [launch.py:335:sigkill_handler] Killing subprocess 293265
+Traceback (most recent call last):
+  File "/home/u-chenx/miniconda3/envs/v2_fast/bin/deepspeed", line 6, in <module>
+    main()
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/deepspeed/launcher/runner.py", line 646, in main
+    result.wait()
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/subprocess.py", line 1209, in wait
+    return self._wait(timeout=timeout)
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/subprocess.py", line 1959, in _wait
+    (pid, sts) = self._try_wait(0)
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/subprocess.py", line 1917, in _try_wait
+    (pid, sts) = os.waitpid(self.pid, wait_flags)
+KeyboardInterrupt
+[rank2]:[W606 07:29:12.775311229 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=77, addr=[localhost]:34784, remote=[localhost]:11002): Connection reset by peer
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:679 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x780c2636afad in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x68f51b2 (0x780b8f0f51b2 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x780b8f0ee403 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x436 (0x780b7130cc56 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdf0e6 (0x780cc6cea0e6 in /home/u-chenx/miniconda3/envs/v2_fast/bin/../lib/libstdc++.so.6)
+frame #5: <unknown function> + 0x9caa4 (0x780ccbc9caa4 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x129c6c (0x780ccbd29c6c in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank2]:[W606 07:29:12.779645729 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 2] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Connection reset by peer
+[rank4]:[W606 07:29:12.775383457 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=77, addr=[localhost]:34774, remote=[localhost]:11002): Connection reset by peer
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:679 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x770a6376afad in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x68f51b2 (0x7709cc4f51b2 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x7709cc4ee403 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x436 (0x7709ae70cc56 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdf0e6 (0x770b040ea0e6 in /home/u-chenx/miniconda3/envs/v2_fast/bin/../lib/libstdc++.so.6)
+frame #5: <unknown function> + 0x9caa4 (0x770b0909caa4 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x129c6c (0x770b09129c6c in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank4]:[W606 07:29:12.779942957 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 4] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Connection reset by peer
+[rank3]:[W606 07:29:12.775141563 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=77, addr=[localhost]:34796, remote=[localhost]:11002): Connection reset by peer
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:679 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x74236ef6afad in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x68f51b2 (0x7422d7cf51b2 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x7422d7cee403 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x436 (0x7422b9f0cc56 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdf0e6 (0x74240f8ea0e6 in /home/u-chenx/miniconda3/envs/v2_fast/bin/../lib/libstdc++.so.6)
+frame #5: <unknown function> + 0x9caa4 (0x74241489caa4 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x129c6c (0x742414929c6c in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W606 07:29:12.775259770 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=77, addr=[localhost]:34790, remote=[localhost]:11002): Connection reset by peer
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:679 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7a745d56afad in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x68f51b2 (0x7a73c66f51b2 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x7a73c66ee403 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x436 (0x7a73a890cc56 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdf0e6 (0x7a74fe0ea0e6 in /home/u-chenx/miniconda3/envs/v2_fast/bin/../lib/libstdc++.so.6)
+frame #5: <unknown function> + 0x9caa4 (0x7a750309caa4 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x129c6c (0x7a7503129c6c in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank3]:[W606 07:29:12.780212623 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 3] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Connection reset by peer
+[rank1]:[W606 07:29:12.780233141 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Connection reset by peer
+[rank7]:[W606 07:29:12.924770541 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=77, addr=[localhost]:34810, remote=[localhost]:11002): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:682 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7f602276afad in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x68f513d (0x7f5f8b4f513d in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x7f5f8b4ee403 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x436 (0x7f5f6d70cc56 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdf0e6 (0x7f60c30ea0e6 in /home/u-chenx/miniconda3/envs/v2_fast/bin/../lib/libstdc++.so.6)
+frame #5: <unknown function> + 0x9caa4 (0x7f60c809caa4 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x129c6c (0x7f60c8129c6c in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank7]:[W606 07:29:12.928421437 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 7] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+[rank6]:[W606 07:29:12.027590317 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=73, addr=[localhost]:34816, remote=[localhost]:11002): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:682 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x79f34676afad in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x68f513d (0x79f2af4f513d in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x79f2af4ee403 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x436 (0x79f29170cc56 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdf0e6 (0x79f3e70ea0e6 in /home/u-chenx/miniconda3/envs/v2_fast/bin/../lib/libstdc++.so.6)
+frame #5: <unknown function> + 0x9caa4 (0x79f3ec09caa4 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x129c6c (0x79f3ec129c6c in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank6]:[W606 07:29:12.032080428 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 6] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+[rank5]:[W606 07:29:12.027485310 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=73, addr=[localhost]:34832, remote=[localhost]:11002): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:682 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x6ffca5b6afad in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x68f513d (0x6ffc0e8f513d in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x6ffc0e8ee403 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x436 (0x6ffbf0b0cc56 in /home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdf0e6 (0x6ffd464ea0e6 in /home/u-chenx/miniconda3/envs/v2_fast/bin/../lib/libstdc++.so.6)
+frame #5: <unknown function> + 0x9caa4 (0x6ffd4b49caa4 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x129c6c (0x6ffd4b529c6c in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank5]:[W606 07:29:12.032273832 ProcessGroupNCCL.cpp:1899] [PG ID 0 PG GUID 0(default_pg) Rank 5] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?

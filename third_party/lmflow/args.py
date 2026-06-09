@@ -804,6 +804,26 @@ class FinetunerArguments(TrainingArguments):
             "help": "Weight decay (L2 penalty) added to the loss to prevent overfitting"
         }
     )
+    block_mask_num_schedule: bool = field(
+        default=True,
+        metadata={
+            "help": (
+                "If True, pass a linearly increasing block_mask_num (start -> end) into "
+                "model forward each step. Does not change masking yet (still random p_mask); "
+                "reserved for future trajectory-based masking."
+            )
+        },
+    )
+    block_mask_num_start: int = field(
+        default=1,
+        metadata={"help": "Initial block_mask_num at training step 0."},
+    )
+    block_mask_num_end: Optional[int] = field(
+        default=None,
+        metadata={
+            "help": "Final block_mask_num at last step. Defaults to model bd_size when unset."
+        },
+    )
     
 @dataclass
 class RewardModelTunerArguments(FinetunerArguments):

@@ -1,0 +1,1 @@
+python generate_trajectory.py --model_path Efficient-Large-Model/Fast_dLLM_v2_7B --output /home/u-chenx/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/trajectory

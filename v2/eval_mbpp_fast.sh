@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-cd /home/u-shengbf/Codes/Fast-dLLM/v2
+cd /home/u-chenx/Codes/Fast-dLLM/v2
 
 export CUDA_VISIBLE_DEVICES=3
 

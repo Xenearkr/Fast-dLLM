@@ -1,33 +1,34 @@
 """
-用与 finetune_a2d_v0.sh 相同的方式加载 / 分词 conversation 数据，再调用 mdm_sample 生成轨迹。
-支持使用 accelerate 进行多卡 (如 8*4090) 分布式并行加速生成。
+基于 generate_trajectory_acc.py，按 block 生成轨迹，并在每个 block 解码完成后用
+ground truth 替换模型输出，作为下一 block 的上下文（block 级 teacher forcing）。
 
-数据源（三选一，优先级从高到低）：
-  --dataset_files train-00000.json train-00001.json   # 指定多个 shard（相对 dataset_path）
-  --dataset_glob 'train-0000*.json'                 # 在 dataset_path 目录下 glob
-  --dataset_path DIR                                # 默认加载目录下全部 *.json
+与 generate_trajectory_acc.py 的区别：
+  - 每解码完一个 block，记录该 block 内各 token 的 trajectory
+  - 进入下一 block 前，将刚解码的 block 替换为数据集中 assistant 的 ground truth token
+  - 刷新 KV cache，确保后续 block 在 GT 前缀上继续解码
+  - 最终输出的 trajectory 仍是模型在各 block 上的真实解码顺序；token 序列以 GT 为准
 
-输出（--output_format）：
-  conversation（推荐）: 单个 LMFlow train-*.json，可直接作为 finetune_trajectory 的 dataset_path
-  jsonl: 每行 {"messages", "system", "conversation_id", "trajectory"}，需再跑 convert_trajectory_jsonl.py
+数据源 / 输出格式 / 多卡加速与 generate_trajectory_acc.py 相同。
 
-示例：从 train_conversation_no_cot 选多个文件，合并写入一个可训练 JSON
-  bash generate_trajectory_acc_screen.sh
-
-或手动 screen（注意 bash -c 内用一行，避免续行丢参数）:
-  screen -dmS generate_tra bash -c 'cd /home/u-chenx/Fast-dLLM/v2 && accelerate launch generate_trajectory_acc.py --model_path base_models/Fast_dLLM_v2_7B_full --dataset_path data/Llama-Nemotron-code-v1.1/train_conversation_no_cot --dataset_glob train-0000*.json --output data/Llama-Nemotron-code-v1.1/trajectory/no_cot_subset/train-00000.json --output_format conversation --batch_size 4 --max_new_tokens 512 --local_files_only > run.log 2>&1'
+示例：
+  accelerate launch generate_trajectory_acc_extra.py \\
+    --model_path base_models/Fast_dLLM_v2_7B_full \\
+    --dataset_path data/Llama-Nemotron-code-v1.1/train_conversation_no_cot \\
+    --dataset_files train-00000.json \\
+    --output data/Llama-Nemotron-code-v1.1/trajectory/no_cot_subset_gt/train-00001.json \\
+    --output_format conversation \\
+    --batch_size 4 --max_new_tokens 512 --local_files_only
 """
 import json
 import sys
 import types
 from pathlib import Path
 import argparse
-import time
 
 import torch
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
-import accelerate  # 引入 accelerate 库
+import accelerate
 
 DEFAULT_DATASET_PATH = (
     "/home/u-chenx/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/train_conversation_no_cot"
@@ -41,8 +42,35 @@ if str(_LMFLOW_ROOT) not in sys.path:
 from lmflow.utils.conversation_template import JINJA_TEMPLATES
 
 
+def _refresh_past_key_values(self, input_ids, block_size):
+    """用 GT 前缀重建 KV cache。"""
+    aligned_len = input_ids.shape[1] // block_size * block_size
+    if aligned_len <= block_size:
+        return None
+    output = self.forward(
+        input_ids=input_ids[:, :aligned_len],
+        use_cache=True,
+        update_past_key_values=True,
+        block_size=block_size,
+    )
+    return output.past_key_values
+
+
+def _apply_ground_truth_block(x_t, ground_truth_ids, block_idx, block_size):
+    """仅将当前已解码 block（及可能的 block 边界 token）替换为 GT。"""
+    block_start = block_idx * block_size
+    block_end = min((block_idx + 1) * block_size, ground_truth_ids.shape[1], x_t.shape[1])
+    if block_end > block_start:
+        x_t[:, block_start:block_end] = ground_truth_ids[:, block_start:block_end]
+
+    boundary_pos = block_end
+    if boundary_pos < ground_truth_ids.shape[1] and boundary_pos < x_t.shape[1]:
+        x_t[:, boundary_pos] = ground_truth_ids[:, boundary_pos]
+    return x_t
+
+
 @torch.no_grad()
-def batch_sample(
+def batch_sample_gt_context(
     self,
     input_ids,
     tokenizer,
@@ -51,6 +79,7 @@ def batch_sample(
     small_block_size,
     min_len,
     seq_len,
+    ground_truth_ids,
     mask_id=151665,
     threshold=0.95,
     stop_token=151645,
@@ -59,7 +88,12 @@ def batch_sample(
     temperature=0.0,
     prompt_padded_len=None,
 ):
-    """与 generation_functions.Fast_dLLM_QwenForCausalLM.batch_sample 相同，并记录解码顺序 trajectory。"""
+    """
+    与 batch_sample 相同，但每个 block 解码后：
+      1. 保留 trajectory 记录
+      2. 用 ground_truth_ids 覆盖该 block
+      3. 重建 past_key_values
+    """
     num_blocks = max_new_tokens // block_size + seq_len.max().item() // block_size
     batch_size = input_ids.shape[0]
 
@@ -67,7 +101,12 @@ def batch_sample(
         prompt_padded_len = int(seq_len.max().item())
 
     if min_len > block_size:
-        output = self.forward(input_ids=input_ids[:, :(min_len // block_size * block_size)], use_cache=True, update_past_key_values=True, block_size=block_size)
+        output = self.forward(
+            input_ids=input_ids[:, :(min_len // block_size * block_size)],
+            use_cache=True,
+            update_past_key_values=True,
+            block_size=block_size,
+        )
         logits, past_key_values = output.logits, output.past_key_values
         if min_len % block_size == 0:
             predict_sample_idx = (seq_len == min_len)
@@ -89,7 +128,7 @@ def batch_sample(
     sample_indices = torch.arange(batch_size, device=self.device)
     finished_samples = {}
     finished_trajectories = {}
-    
+
     traj_lens = torch.full(
         (batch_size,),
         prompt_padded_len + max_new_tokens,
@@ -109,8 +148,7 @@ def batch_sample(
         decode_count += predict_sample_idx.long()
         trajectory[predict_sample_idx, min_len] = decode_count[predict_sample_idx]
 
-    def align_trajectory_to_sample(traj_row, sample_row, current_count):
-        sample_len = sample_row.shape[0]
+    def align_trajectory_to_sample(traj_row, sample_len, current_count):
         if traj_row.shape[0] >= sample_len:
             return traj_row[:sample_len].clone()
         pad_len = sample_len - traj_row.shape[0]
@@ -144,35 +182,42 @@ def batch_sample(
         traj[batch_idx, abs_pos] = counts[batch_idx]
 
     for block_idx in range(start_block_idx, num_blocks):
-        if finished_flag.all():
-            break
         if (seq_block_idx == block_idx).all():
-            x_init = mask_id * torch.ones((input_ids.shape[0], block_size-input_ids.shape[1]%block_size), device=self.device, dtype=torch.long)
+            x_init = mask_id * torch.ones(
+                (input_ids.shape[0], block_size - input_ids.shape[1] % block_size),
+                device=self.device,
+                dtype=torch.long,
+            )
             x_init = torch.cat([input_ids, x_init], dim=1)
             input_ids = x_init
         else:
-            x_init = input_ids[:, :(block_idx + 1)*block_size]
+            x_init = input_ids[:, :(block_idx + 1) * block_size]
 
         x_init[finished_flag, -block_size:] = tokenizer.pad_token_id
         x_t = x_init.clone()
-        step = 0
         block_past_key_values = None
+
         while True:
             mask_idx = (x_t[:, -block_size:] == mask_id)
             if mask_idx.sum() == 0:
                 for sample_idx in range(x_t.shape[0]):
                     if finished_flag[sample_idx] and seq_len[sample_idx] < (block_idx + 1) * block_size:
-                        stop_token_idx = (x_t[sample_idx, seq_len[sample_idx]:] == stop_token).nonzero()[0][0]
-                        x_t[sample_idx, seq_len[sample_idx]+stop_token_idx+1:] = tokenizer.pad_token_id
-                if finished_flag.all():
-                    break
-                output = self.forward(input_ids=x_t[:, -block_size:], use_cache=True, past_key_values=past_key_values, update_past_key_values=True, block_size=block_size)
+                        stop_positions = (x_t[sample_idx, seq_len[sample_idx]:] == stop_token).nonzero()
+                        if stop_positions.numel() > 0:
+                            stop_token_idx = stop_positions[0][0]
+                            x_t[sample_idx, seq_len[sample_idx] + stop_token_idx + 1 :] = tokenizer.pad_token_id
+                output = self.forward(
+                    input_ids=x_t[:, -block_size:],
+                    use_cache=True,
+                    past_key_values=past_key_values,
+                    update_past_key_values=True,
+                    block_size=block_size,
+                )
                 logits, past_key_values = output.logits, output.past_key_values
                 next_token = logits[:, -1:, :].argmax(dim=-1)
                 next_token[finished_flag] = tokenizer.pad_token_id
                 x_t = torch.cat([x_t, next_token], dim=1)
                 record_append_decode(trajectory, decode_count, seq_len, traj_lens, x_t.shape[1] - 1)
-                step += 1
                 break
 
             for small_block_idx in range(num_small_blocks):
@@ -187,18 +232,38 @@ def batch_sample(
                         break
 
                     if use_block_cache:
-                        if block_past_key_values is None or (x_t[:, -block_size+small_block_start_idx] == mask_id).any():
-                            output = self.forward(input_ids=x_t[:, -block_size:], use_cache=True, past_key_values=past_key_values, update_past_key_values=False, use_block_cache=True)
+                        if block_past_key_values is None or (x_t[:, -block_size + small_block_start_idx] == mask_id).any():
+                            output = self.forward(
+                                input_ids=x_t[:, -block_size:],
+                                use_cache=True,
+                                past_key_values=past_key_values,
+                                update_past_key_values=False,
+                                use_block_cache=True,
+                            )
                             logits, block_past_key_values = output.logits, output.block_past_key_values
                             logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
                             logits = logits[:, start:end]
                         else:
-                            logits = self.forward(input_ids=x_t[:,start:end], use_cache=True, past_key_values=past_key_values, update_past_key_values=False, use_block_cache=True, block_past_key_values=block_past_key_values, replace_position=small_block_start_idx).logits
+                            logits = self.forward(
+                                input_ids=x_t[:, start:end],
+                                use_cache=True,
+                                past_key_values=past_key_values,
+                                update_past_key_values=False,
+                                use_block_cache=True,
+                                block_past_key_values=block_past_key_values,
+                                replace_position=small_block_start_idx,
+                            ).logits
                             logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
                     else:
-                        logits = self.forward(input_ids=x_t[:, -block_size:], use_cache=True, past_key_values=past_key_values, update_past_key_values=False).logits
+                        logits = self.forward(
+                            input_ids=x_t[:, -block_size:],
+                            use_cache=True,
+                            past_key_values=past_key_values,
+                            update_past_key_values=False,
+                        ).logits
                         logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
                         logits = logits[:, start:end]
+
                     x_1, p_1t = self.sample_with_top_p(logits, top_p=top_p, temperature=temperature)
                     x1_p = torch.squeeze(torch.gather(p_1t, dim=-1, index=torch.unsqueeze(x_1, -1)), -1)
                     x1_p = torch.where(mask_idx[:, start:end], x1_p, -torch.inf)
@@ -214,50 +279,35 @@ def batch_sample(
 
                     finished_row_flags = ((x_1 == stop_token) & unmask_idx).any(dim=1)
                     finished_flag = finished_flag | finished_row_flags
-                    step += 1
+
+        # block 解码完成：用 GT 替换当前 block，再进入下一 block
+        x_t = _apply_ground_truth_block(x_t, ground_truth_ids, block_idx, block_size)
 
         if input_ids.shape[1] == x_t.shape[1]:
             input_ids = x_t
         else:
-            input_ids[:, :(block_idx + 1)*block_size] = x_t[:, :-1]
+            input_ids[:, :(block_idx + 1) * block_size] = x_t[:, :-1]
             if (seq_block_idx == block_idx).all():
                 input_ids = torch.cat([input_ids, x_t[:, -1:]], dim=1)
             else:
-                if input_ids.shape[1] <= (block_idx + 1)*block_size:
+                if input_ids.shape[1] <= (block_idx + 1) * block_size:
                     input_ids = x_t
                 else:
-                    input_ids[seq_block_idx == block_idx, (block_idx + 1)*block_size] = x_t[seq_block_idx == block_idx, (block_idx + 1)*block_size]
+                    input_ids[seq_block_idx == block_idx, (block_idx + 1) * block_size] = x_t[
+                        seq_block_idx == block_idx, (block_idx + 1) * block_size
+                    ]
+
+        past_key_values = _refresh_past_key_values(self, input_ids, block_size)
         seq_block_idx[seq_block_idx == block_idx] = block_idx + 1
-        if finished_flag.any():
-            for sample_idx in range(x_t.shape[0]):
-                if finished_flag[sample_idx]:
-                    original_idx = sample_indices[sample_idx].item()
-                    finished_samples[original_idx] = x_t[sample_idx:sample_idx+1].clone().squeeze(dim=0)
-                    finished_trajectories[original_idx] = align_trajectory_to_sample(
-                        trajectory[sample_idx], x_t[sample_idx], decode_count[sample_idx].item()
-                    )
-            sample_indices = sample_indices[~finished_flag]
-            input_ids = input_ids[~finished_flag]
-            seq_block_idx = seq_block_idx[~finished_flag]
-            seq_len = seq_len[~finished_flag]
-            traj_lens = traj_lens[~finished_flag]
-            x_t = x_t[~finished_flag]
-            trajectory = trajectory[~finished_flag]
-            decode_count = decode_count[~finished_flag]
 
-            for layer_id in range(len(past_key_values)):
-                past_key_values.key_cache[layer_id] = past_key_values.key_cache[layer_id][~finished_flag]
-                past_key_values.value_cache[layer_id] = past_key_values.value_cache[layer_id][~finished_flag]
-
-            finished_flag = finished_flag[~finished_flag]
-
-    if len(finished_samples) < batch_size:
-        for sample_idx in range(x_t.shape[0]):
-            original_idx = sample_indices[sample_idx].item()
-            finished_samples[original_idx] = x_t[sample_idx:sample_idx+1].clone().squeeze(dim=0)
-            finished_trajectories[original_idx] = align_trajectory_to_sample(
-                trajectory[sample_idx], x_t[sample_idx], decode_count[sample_idx].item()
-            )
+    for sample_idx in range(batch_size):
+        sample_len = int(traj_lens[sample_idx].item())
+        finished_samples[sample_idx] = ground_truth_ids[sample_idx, :sample_len]
+        finished_trajectories[sample_idx] = align_trajectory_to_sample(
+            trajectory[sample_idx],
+            sample_len,
+            decode_count[sample_idx].item(),
+        )
 
     assert len(finished_samples) == batch_size
     assert len(finished_trajectories) == batch_size
@@ -309,6 +359,12 @@ def load_conversation_dataset(json_files: list[Path], limit=None):
 
         for i, inst in enumerate(data["instances"]):
             task_id = inst.get("conversation_id") or f"{json_file.stem}-{i}"
+            if not inst.get("messages"):
+                continue
+            if inst["messages"][-1]["role"] != "assistant":
+                raise ValueError(
+                    f"Instance {task_id} in {json_file} has no assistant message for ground truth"
+                )
             items.append((task_id, inst, str(json_file.name)))
             if limit is not None and len(items) >= limit:
                 return items
@@ -379,10 +435,57 @@ def build_generation_prompt(instance, tokenizer, conversation_template):
     )
 
 
-def batch_generate(
+def build_ground_truth_token_ids(
+    instance,
+    tokenizer,
+    conversation_template,
+    *,
+    prompt_padded_len: int,
+    max_new_tokens: int,
+    mask_id: int,
+):
+    """构造与 batch padding 对齐的 GT token 序列：prompt + mask pad + assistant。"""
+    messages = list(instance["messages"])
+    system = instance.get("system") or None
+
+    conversation = []
+    if system:
+        conversation.append({"role": "system", "content": system})
+    conversation.extend(messages)
+
+    full_text = tokenizer.apply_chat_template(
+        conversation=conversation,
+        chat_template=conversation_template,
+        tokenize=False,
+        add_generation_prompt=False,
+    )
+    full_ids = tokenizer([full_text], return_tensors="pt")["input_ids"][0]
+
+    prompt_text = build_generation_prompt(instance, tokenizer, conversation_template)
+    prompt_ids = tokenizer([prompt_text], return_tensors="pt")["input_ids"][0]
+    prompt_len = int(prompt_ids.shape[0])
+
+    gen_gt = full_ids[prompt_len:]
+    total_len = prompt_padded_len + max_new_tokens
+    gt = torch.full((total_len,), tokenizer.pad_token_id, dtype=torch.long)
+
+    gt[:prompt_len] = prompt_ids
+    if prompt_padded_len > prompt_len:
+        gt[prompt_len:prompt_padded_len] = mask_id
+
+    gen_len = min(int(gen_gt.shape[0]), max_new_tokens)
+    if gen_len > 0:
+        gt[prompt_padded_len : prompt_padded_len + gen_len] = gen_gt[:gen_len]
+
+    return gt
+
+
+def batch_generate_gt_context(
     model,
     tokenizer,
     prompts,
+    instances,
+    conversation_template,
     device,
     *,
     mask_id,
@@ -393,11 +496,12 @@ def batch_generate(
     use_block_cache,
 ):
     input_id_list = []
+    gt_list = []
     seq_lens = []
     max_len = 0
     min_len = 10**18
 
-    for prompt in prompts:
+    for prompt, instance in zip(prompts, instances):
         model_inputs = tokenizer([prompt], return_tensors="pt")
         input_ids = model_inputs["input_ids"].to(device)
 
@@ -415,11 +519,23 @@ def batch_generate(
                 mask_id,
                 dtype=torch.long,
                 device=device,
-                )
+            )
             input_ids = torch.cat([input_ids, pad], dim=1)
         padded.append(input_ids)
 
+    for instance in instances:
+        gt = build_ground_truth_token_ids(
+            instance,
+            tokenizer,
+            conversation_template,
+            prompt_padded_len=max_len,
+            max_new_tokens=max_new_tokens,
+            mask_id=mask_id,
+        )
+        gt_list.append(gt)
+
     batched_input_ids = torch.cat(padded, dim=0).to(device)
+    ground_truth_ids = torch.stack(gt_list, dim=0).to(device)
     seq_len_tensor = torch.tensor(seq_lens, dtype=torch.long, device=device)
 
     with torch.no_grad():
@@ -432,14 +548,13 @@ def batch_generate(
             mask_id=mask_id,
             min_len=min_len,
             seq_len=seq_len_tensor,
+            ground_truth_ids=ground_truth_ids,
             use_block_cache=use_block_cache,
             threshold=threshold,
             prompt_padded_len=max_len,
         )
 
-    completions = []
     trajectories = []
-
     for batch_idx, prompt_len in enumerate(seq_lens):
         full_ids = finished_samples[batch_idx]
         traj = finished_trajectories[batch_idx]
@@ -450,13 +565,9 @@ def batch_generate(
                 f"for batch index {batch_idx}"
             )
 
-        new_ids = full_ids[prompt_len:]
-        new_ids = new_ids[new_ids != mask_id]
-        text = tokenizer.decode(new_ids, skip_special_tokens=True)
-        completions.append(text)
         trajectories.append(traj.detach().cpu().tolist())
 
-    return completions, trajectories
+    return trajectories
 
 
 def main():
@@ -498,7 +609,7 @@ def main():
     parser.add_argument("--mask_id", type=int, default=151665)
     parser.add_argument("--bd_size", type=int, default=32)
     parser.add_argument("--small_block_size", type=int, default=8)
-    parser.add_argument("--threshold", type=float, default=torch.inf) 
+    parser.add_argument("--threshold", type=float, default=torch.inf)
     parser.add_argument("--use_block_cache", action="store_true")
 
     parser.add_argument("--limit", type=int, default=None)
@@ -513,7 +624,6 @@ def main():
             f"Got max_new_tokens={args.max_new_tokens}, bd_size={args.bd_size}"
         )
 
-    # 1. 初始化 Accelerator 
     accelerator = accelerate.Accelerator()
     device = accelerator.device
 
@@ -524,10 +634,9 @@ def main():
     else:
         torch_dtype = torch.float32
 
-    # 仅在主进程（rank 0）打印加载信息
     if accelerator.is_main_process:
         print("Loading tokenizer:", args.model_path)
-        
+
     tokenizer = AutoTokenizer.from_pretrained(
         args.model_path,
         trust_remote_code=True,
@@ -547,23 +656,17 @@ def main():
     if accelerator.is_main_process:
         print("Loading model:", args.model_path)
 
-    # 2. 干净地加载模型，不要传任何自定义的 device_map 字典，防止卡抢占
     model = AutoModelForCausalLM.from_pretrained(
         args.model_path,
         trust_remote_code=True,
         torch_dtype=torch_dtype,
         local_files_only=args.local_files_only,
-        low_cpu_mem_usage=True      # 降低加载时的临时内存开销
+        low_cpu_mem_usage=True,
     )
-
-    # 3. 核心：直接把模型整体搬运到当前进程对应的独立卡上
     model = model.to(device)
-
-    # 4. 绑定自定义类方法并开启 eval
-    model.mdm_sample = types.MethodType(batch_sample, model)
+    model.mdm_sample = types.MethodType(batch_sample_gt_context, model)
     model.eval()
 
-    # 5. 使用 accelerate 规范包装模型
     generation_model = model
 
     json_files = resolve_input_json_files(
@@ -584,31 +687,31 @@ def main():
         print(f"Total problems across all GPUs: {len(all_items)}")
         print(f"Problems assigned per GPU (approx): {len(worker_items)}")
         print(f"Output: {output_path} (format={output_format})")
+        print("Mode: block-level GT context (teacher forcing between blocks)")
 
     local_rows = []
 
-    # 使用 tqdm 包装（只展示主进程的进度条以避免终端错乱）
     disable_tqdm = not accelerator.is_main_process
     for start in tqdm(range(0, len(worker_items), args.batch_size), desc="Generating", disable=disable_tqdm):
         batch_items = worker_items[start : start + args.batch_size]
-
-        valid_batch = [
-            (task_id, instance, source_file)
-            for task_id, instance, source_file in batch_items
-            if instance.get("messages")
-        ]
-        if not valid_batch:
+        if not batch_items:
             continue
+
+        task_ids = [x[0] for x in batch_items]
+        instances_batch = [x[1] for x in batch_items]
+        source_files = [x[2] for x in batch_items]
 
         prompts = [
             build_generation_prompt(instance, tokenizer, conversation_template)
-            for _, instance, _ in valid_batch
+            for instance in instances_batch
         ]
 
-        _, trajectories = batch_generate(
+        trajectories = batch_generate_gt_context(
             model=generation_model,
             tokenizer=tokenizer,
             prompts=prompts,
+            instances=instances_batch,
+            conversation_template=conversation_template,
             device=device,
             mask_id=args.mask_id,
             bd_size=args.bd_size,
@@ -618,7 +721,9 @@ def main():
             use_block_cache=args.use_block_cache,
         )
 
-        for (task_id, instance, source_file), trajectory in zip(valid_batch, trajectories):
+        for task_id, instance, source_file, trajectory in zip(
+            task_ids, instances_batch, source_files, trajectories
+        ):
             system = instance.get("system")
             if system is None:
                 system = ""
@@ -632,11 +737,8 @@ def main():
                 row["source_file"] = source_file
             local_rows.append(row)
 
-    # 7. 【数据安全收集与异步持久化】
-    # 使用 gather_object 将 8张卡上大小不一的 dict 列表完美聚合回主进程
     all_gathered_rows = accelerate.utils.gather_object(local_rows)
 
-    # 8. 仅在主进程进行单点写入，防止 8 个进程并发写入同一个文件导致数据错乱/死锁
     if accelerator.is_main_process:
         write_output_rows(all_gathered_rows, output_path, output_format)
         print(f"Successfully saved {len(all_gathered_rows)} trajectories to {output_path}")

@@ -1,0 +1,88 @@
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+/home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10: can't open file '/home/u-chenx/Fast-dLLM/v2/utils/generate_trajectory_acc.py': [Errno 2] No such file or directory
+E0603 02:33:32.514000 3836144 site-packages/torch/distributed/elastic/multiprocessing/api.py:988] failed (exitcode: 2) local_rank: 0 (pid: 3836276) of binary: /home/u-chenx/miniconda3/envs/v2_fast/bin/python3.10
+Traceback (most recent call last):
+  File "/home/u-chenx/miniconda3/envs/v2_fast/bin/accelerate", line 6, in <module>
+    sys.exit(main())
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/accelerate/commands/accelerate_cli.py", line 50, in main
+    args.func(args)
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/accelerate/commands/launch.py", line 1396, in launch_command
+    multi_gpu_launcher(args)
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/accelerate/commands/launch.py", line 1023, in multi_gpu_launcher
+    distrib_run.run(args)
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/distributed/run.py", line 1007, in run
+    elastic_launch(
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 191, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/home/u-chenx/miniconda3/envs/v2_fast/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 371, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+generate_trajectory_acc.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 1 (local_rank: 1)
+  exitcode  : 2 (pid: 3836277) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[2]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 2 (local_rank: 2)
+  exitcode  : 2 (pid: 3836278) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[3]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 3 (local_rank: 3)
+  exitcode  : 2 (pid: 3836279) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[4]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 4 (local_rank: 4)
+  exitcode  : 2 (pid: 3836280) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[5]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 5 (local_rank: 5)
+  exitcode  : 2 (pid: 3836281) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[6]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 6 (local_rank: 6)
+  exitcode  : 2 (pid: 3836282) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+[7]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 7 (local_rank: 7)
+  exitcode  : 2 (pid: 3836283) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-06-03_02:33:32
+  host      : ip6-localhost
+  rank      : 0 (local_rank: 0)
+  exitcode  : 2 (pid: 3836276) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

@@ -9,7 +9,7 @@
 set -euo pipefail
 
 export CUDA_VISIBLE_DEVICES=1
-cd /home/u-shengbf/Codes/Fast-dLLM/v2/
+cd /home/u-chenx/Codes/Fast-dLLM/v2/
 mkdir -p evalplus_results
 
 # 按需修改：模型名称

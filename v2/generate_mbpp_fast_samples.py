@@ -3,6 +3,7 @@ import argparse
 import ast
 import json
 import re
+import time
 import types
 from collections import Counter
 from pathlib import Path
@@ -10,6 +11,18 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from generation_speed_metrics import (
+    attach_forward_counter,
+    build_speed_report,
+    count_new_tokens,
+    print_speed_report,
+    reset_forward_counter,
+    restore_forward,
+    save_speed_report,
+    sync_cuda,
+    validate_warmup_new_tokens,
+)
 
 
 COMMON_NON_TARGET_CALLS = {
@@ -393,14 +406,16 @@ def fast_batch_generate(
         )
 
     completions = []
+    batch_new_tokens = 0
     for batch_idx, prompt_len in enumerate(seq_lens):
         full_ids = generated[batch_idx]
+        batch_new_tokens += count_new_tokens(full_ids, prompt_len, mask_id)
         new_ids = full_ids[prompt_len:]
         new_ids = new_ids[new_ids != mask_id]
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
         completions.append(text)
 
-    return completions
+    return completions, batch_new_tokens
 
 
 def fast_generate_single_fallback(
@@ -419,6 +434,7 @@ def fast_generate_single_fallback(
     temperature,
 ):
     completions = []
+    batch_new_tokens = 0
 
     for prompt in prompts:
         inputs = tokenizer([prompt], return_tensors="pt").to(device)
@@ -438,12 +454,13 @@ def fast_generate_single_fallback(
                 temperature=temperature,
             )
 
+        batch_new_tokens += count_new_tokens(out[0], prompt_len, mask_id)
         new_ids = out[0][prompt_len:]
         new_ids = new_ids[new_ids != mask_id]
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
         completions.append(text)
 
-    return completions
+    return completions, batch_new_tokens
 
 
 def count_non_compilable(path: Path):
@@ -491,6 +508,28 @@ def main():
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--local_files_only", action="store_true")
     parser.add_argument("--dtype", choices=["bf16", "fp16", "fp32"], default="bf16")
+    parser.add_argument(
+        "--method",
+        default="model",
+        help="Label used in speed metrics (e.g. Fast, Trajectory).",
+    )
+    parser.add_argument(
+        "--metrics_output",
+        default=None,
+        help="Where to write TPS/TPF metrics JSON. Default: <output>.metrics.json",
+    )
+    parser.add_argument(
+        "--warmup_steps",
+        type=int,
+        default=3,
+        help="Number of warmup generations before timed eval (default: 3). Set 0 to disable.",
+    )
+    parser.add_argument(
+        "--warmup_new_tokens",
+        type=int,
+        default=32,
+        help="max_new_tokens per warmup step; must be divisible by bd_size (default: 32).",
+    )
 
     parser.add_argument(
         "--use_chat_template",
@@ -505,6 +544,8 @@ def main():
             f"max_new_tokens must be divisible by bd_size. "
             f"Got max_new_tokens={args.max_new_tokens}, bd_size={args.bd_size}"
         )
+    if args.warmup_steps > 0:
+        validate_warmup_new_tokens(args.warmup_new_tokens, args.bd_size)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -557,11 +598,58 @@ def main():
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    metrics_output = (
+        Path(args.metrics_output)
+        if args.metrics_output is not None
+        else output_path.with_name(output_path.stem + ".metrics.json")
+    )
+
     print("Dataset: mbpp")
     print(f"Num problems: {len(items)}")
     print(f"Output: {output_path}")
+    print(f"Metrics: {metrics_output}")
 
     failed_extract = []
+    total_new_tokens = 0
+
+    forward_counter, original_forward = attach_forward_counter(model)
+
+    if args.warmup_steps > 0 and items:
+        warmup_batch = items[: args.batch_size]
+        warmup_problems = [x[1] for x in warmup_batch]
+        warmup_prompts = [
+            apply_chat_template(
+                tokenizer,
+                build_mbpp_prompt(problem),
+                args.use_chat_template,
+            )
+            for problem in warmup_problems
+        ]
+        print(
+            f"Warmup: {args.warmup_steps} step(s), "
+            f"{args.warmup_new_tokens} new tokens/step"
+        )
+        for step in range(args.warmup_steps):
+            generate_fn(
+                model=model,
+                tokenizer=tokenizer,
+                prompts=warmup_prompts,
+                device=device,
+                mask_id=args.mask_id,
+                bd_size=args.bd_size,
+                small_block_size=args.small_block_size,
+                max_new_tokens=args.warmup_new_tokens,
+                threshold=args.threshold,
+                use_block_cache=args.use_block_cache,
+                top_p=args.top_p,
+                temperature=args.temperature,
+            )
+            print(f"  warmup step {step + 1}/{args.warmup_steps} done")
+        sync_cuda()
+        reset_forward_counter(forward_counter)
+
+    sync_cuda()
+    generate_start = time.perf_counter()
 
     with output_path.open("w", encoding="utf-8") as f:
         for start in tqdm(range(0, len(items), args.batch_size), desc="Generating MBPP"):
@@ -578,7 +666,7 @@ def main():
                 for problem in problems_batch
             ]
 
-            completions = generate_fn(
+            completions, batch_new_tokens = generate_fn(
                 model=model,
                 tokenizer=tokenizer,
                 prompts=prompts,
@@ -592,6 +680,7 @@ def main():
                 top_p=args.top_p,
                 temperature=args.temperature,
             )
+            total_new_tokens += batch_new_tokens
 
             for task_id, problem, completion in zip(task_ids, problems_batch, completions):
                 solution, ok = clean_generated_mbpp_code(completion, problem)
@@ -604,6 +693,30 @@ def main():
                     "solution": solution,
                 }
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    sync_cuda()
+    generate_time_s = time.perf_counter() - generate_start
+    restore_forward(model, original_forward)
+
+    speed_report = build_speed_report(
+        method=args.method,
+        model_path=args.model_path,
+        dataset="mbpp",
+        num_samples=len(items),
+        new_tokens=total_new_tokens,
+        generate_time_s=generate_time_s,
+        forward_calls=forward_counter["count"],
+        batch_size=args.batch_size,
+        max_new_tokens=args.max_new_tokens,
+        bd_size=args.bd_size,
+        small_block_size=args.small_block_size,
+        threshold=args.threshold,
+        use_block_cache=args.use_block_cache,
+        warmup_steps=args.warmup_steps,
+        warmup_new_tokens=args.warmup_new_tokens if args.warmup_steps > 0 else 0,
+    )
+    save_speed_report(metrics_output, speed_report)
+    print_speed_report(speed_report)
 
     print(f"Done. Wrote {len(items)} samples to {output_path}")
 

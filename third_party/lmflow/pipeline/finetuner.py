@@ -439,7 +439,8 @@ class Finetuner(BaseTuner):
              model: Union[HFDecoderModel, HFTextRegressionModel, HFEncoderDecoderModel],
              dataset: Dataset,
              transform_dataset_in_place=True,
-             data_collator=None):
+             data_collator=None,
+             extra_trainer_callbacks: Optional[list] = None):
         """
         Perform tuning for a model
 
@@ -595,6 +596,9 @@ class Finetuner(BaseTuner):
             )
 
             trainer_callbacks.append(dynamic_layer_activation_callback)
+
+        if extra_trainer_callbacks:
+            trainer_callbacks.extend(extra_trainer_callbacks)
 
         trainer = FinetuningTrainer(
             model=model.get_backend_model(),

@@ -12,13 +12,13 @@ from pathlib import Path
 
 
 INPUT_PATH = Path(
-    "/home/u-shengbf/Codes/Fast-dLLM/v2/data/"
-    "Llama-Nemotron-code-v1.1/SFT/code/code_v1.1.jsonl"
+    "/home/u-chenx/Fast-dLLM/v2/data/"
+    "Llama-Nemotron-code-v1.1/SFT/code/code_no_cot.jsonl"
 )
 
 OUTPUT_DIR = Path(
-    "/home/u-shengbf/Codes/Fast-dLLM/v2/data/"
-    "Llama-Nemotron-code-v1.1/train_conversation"
+    "/home/u-chenx/Fast-dLLM/v2/data/"
+    "Llama-Nemotron-code-v1.1/train_conversation_no_cot"
 )
 
 SHARD_SIZE = 10000

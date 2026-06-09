@@ -11,6 +11,7 @@ import json
 import sys
 import types
 from pathlib import Path
+import accelerate
 import argparse
 
 import torch
