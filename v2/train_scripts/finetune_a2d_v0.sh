@@ -12,7 +12,7 @@ cd "${PROJECT_ROOT}"
 # 3. 调整参数，比如用max-steps控制本轮迭代次数等
 
 # 断点续训方法：
-# RESUME_DIR=/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260527_235410 \
+# RESUME_DIR=/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114 \
 # bash train_scripts/finetune_a2d_v0.sh
 
 
@@ -23,7 +23,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
 model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
-config="ds_config_zero2_full.json"
+config="ds_config_zero3_full.json"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
@@ -109,7 +109,7 @@ cmd="deepspeed ${deepspeed_args} \
     --warmup_ratio 0.03 \
     --disable_group_texts 0 \
     --block_size 512 \
-    --per_device_train_batch_size 1 \
+    --per_device_train_batch_size 2 \
     --gradient_accumulation_steps 8 \
     --deepspeed configs/${config} \
     --bf16 \
@@ -119,13 +119,12 @@ cmd="deepspeed ${deepspeed_args} \
     --do_train \
     --ddp_timeout 72000 \
     --save_strategy steps \
-    --save_steps 500 \
+    --save_steps 2000 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
-    --use_flash_attention 1 \
+    --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --optim adamw_bnb_8bit \
-    --max_steps 1000 "
+    --max_steps 5000 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]

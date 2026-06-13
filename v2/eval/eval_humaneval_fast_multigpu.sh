@@ -287,7 +287,7 @@ case "$METHOD" in
     ;;
 
   Cu_Step1000)
-    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114"
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-1000"
     ;;
 
   Cu8_Step500)
@@ -298,12 +298,40 @@ case "$METHOD" in
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_234720"
     ;;
 
-  Cu8f_Step500)
-    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260609_102518/checkpoint-500"
+  Recover)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260609_205821"
     ;;
 
-  Cu8f_Step1000)
-    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260609_102518"
+  Cu_Step1500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-1500"
+    ;;
+
+  Cu_Step2000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-2000"
+    ;;
+
+  Cu_Step2500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-2500"
+    ;;
+
+  Cu_Step3000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-3000"
+    ;;
+
+  Cu_Step3500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-3500"
+    ;;
+
+  Cu_Step4000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-4000"
+    ;;
+
+  Cu_Step4500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-4500"
+    ;;
+
+  Cu_Step5000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-5000"
     ;;
 
   *)

@@ -6,7 +6,7 @@ import numpy as np  # 引入 numpy 方便计算百分位数
 
 # ================= 配置参数 =================
 # 预处理后的数据目录（use 文件夹）
-DATA_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/using")
+DATA_DIR = Path("/home/u-shengbf/Codes/Fast-dLLM/v2/data/Llama-Nemotron-code-v1.1/train_conversation")
 # Tokenizer 路径
 TOKENIZER_PATH = "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
 

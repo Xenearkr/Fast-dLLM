@@ -196,6 +196,42 @@ case "$METHOD" in
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260609_102518"
     ;;
 
+  Recover)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260609_205821"
+    ;;
+
+  Cu_Step1500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-1500"
+    ;;
+
+  Cu_Step2000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-2000"
+    ;;
+
+  Cu_Step2500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-2500"
+    ;;
+
+  Cu_Step3000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-3000"
+    ;;
+
+  Cu_Step3500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-3500"
+    ;;
+
+  Cu_Step4000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-4000"
+    ;;
+
+  Cu_Step4500)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-4500"
+    ;;
+
+  Cu_Step5000)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-5000"
+    ;;
+
   *)
     echo "Unknown METHOD: ${METHOD}" >&2
     echo "Supported METHOD values: Fast, Qwen2.5, Qwen2.5_LoRA, Qwen3_Ori, Qwen3, Qwen3_Large" >&2

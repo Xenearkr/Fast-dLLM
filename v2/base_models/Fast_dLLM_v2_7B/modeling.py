@@ -444,6 +444,7 @@ class Fast_dLLM_QwenModel(Fast_dLLM_QwenPreTrainedModel):
 
 
     def eval_mask(self, seqlen, block_size, cache_seq_len):
+        # 推理阶段块因果掩码
         q_indices = torch.arange(seqlen) + cache_seq_len
         k_indices = torch.arange(seqlen + cache_seq_len)
         mask = eval_block_diff_mask(
@@ -454,9 +455,11 @@ class Fast_dLLM_QwenModel(Fast_dLLM_QwenPreTrainedModel):
         return mask
 
     def gen_mask(self, seqlen, block_size, B, H):
-        # 引入 flex_attention 配套工具 create_block_mask
-        # 输入：自定义的掩码判断函数（block_diff_mask），以及 batch size、head 数、query 长度、key 长度
-        # 输出：BlockMask 对象（不是普通布尔张量），能被 flex_attention 硬件加速，比普通掩码快 10 倍以上
+        """
+        训练阶段复合块掩码：引入 flex_attention 配套工具 create_block_mask
+        输入：自定义的掩码判断函数（block_diff_mask），以及 batch size、head 数、query 长度、key 长度
+        输出：BlockMask 对象（不是普通布尔张量），能被 flex_attention 硬件加速，比普通掩码快 10 倍以上
+        """
         mask = create_block_mask(
             partial(block_diff_mask, block_size=block_size, n=seqlen),
             B=B, H=H, Q_LEN=seqlen*2, KV_LEN=seqlen*2)
@@ -763,11 +766,12 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
         scores_list = [] if output_scores else None
         decoder_hidden_states = [] if output_hidden_states else None
         
-        # 计算要生成多少个block
+        # 计算要生成多少个 block
         num_blocks = max_new_tokens // block_size
-        original_input_length = input_ids.shape[1]
+        original_input_length = input_ids.shape[1] # 记录原始 prompt 长度，用于后续截断终止符
 
-        if input_ids.shape[1] > block_size: # 如果 prompt 长度超过一个block，做一次prefill
+        if input_ids.shape[1] > block_size: 
+            # 如果 prompt 长度超过一个block，做一次完整的前置推理，生成全局块级 KV 缓存
             output = self.forward(
                 input_ids=input_ids[:, :(input_ids.shape[1] // block_size * block_size)], 
                 use_cache=True, 
@@ -786,6 +790,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
                 next_token = logits[:, -1:, :].argmax(dim=-1)
                 input_ids = torch.cat([input_ids, next_token], dim=1)
         else:
+            # prompt 长度 <32，不执行预填充
             past_key_values = None
 
         # 当前block内部：切成多个small-block，逐段refine
@@ -795,7 +800,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
             if stop_token in input_ids[:, original_input_length:]:
                 break
             prompt_length = input_ids.shape[1]
-            # Initialize x_init with mask_id
+            # Initialize x_init with mask_id 构造带掩码的初始序列 x_init
             x_init = mask_id * torch.ones(
                 (input_ids.shape[0], block_size-prompt_length%block_size), 
                 device=self.device, 
@@ -804,9 +809,10 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
             x_init = torch.cat([input_ids, x_init], dim=1)
 
             x_t = x_init.clone()
-            block_past_key_values = None
+            block_past_key_values = None # 初始化子块缓存（单个全局块生命周期内有效，块结束即失效）
             
             while True:
+                # 退出条件1：检测到终止符 stop_token，且终止符前无未解码掩码
                 if stop_token in x_t[:, prompt_length:]:
                     stop_token_idx = (x_t[:, prompt_length:] == stop_token).nonzero()[0][1]
                     if (x_t[:, prompt_length:prompt_length+stop_token_idx] == mask_id).sum() == 0:
@@ -814,7 +820,7 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
                 mask_idx = (x_t[:, -block_size:] == mask_id)
                 
                 # Decode a complete block, update cache, and generate the next token
-                # 退出机制：没有mask
+                # 退出条件2：当前全局块内所有掩码都被解掩码（mask_idx.sum() == 0），块解码完成
                 if mask_idx.sum() == 0:
                     output = self.forward(
                         input_ids=x_t[:, -block_size:], 
@@ -853,6 +859,8 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
 
                         if use_block_cache:
                             if block_past_key_values is None or (x_t[:, -block_size+small_block_start_idx] == mask_id).any():
+                                # 缓存失效：重新计算全块
+                                # 触发条件：缓存未初始化(None)或子块起始位仍是掩码
                                 output = self.forward(
                                     input_ids=x_t[:, -block_size:], 
                                     use_cache=True, 
@@ -861,9 +869,10 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
                                     use_block_cache=True,
                                 )
                                 logits, block_past_key_values = output.logits, output.block_past_key_values
-                                logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
+                                logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1) # token shift
                                 logits = logits[:, start:end]
                             else:
+                                # 缓存有效：仅输入当前子块
                                 output = self.forward(
                                     input_ids=x_t[:,start:end], 
                                     use_cache=True, 
@@ -874,16 +883,16 @@ class Fast_dLLM_QwenForCausalLM(Fast_dLLM_QwenPreTrainedModel, GenerationMixin):
                                     replace_position=small_block_start_idx
                                 )
                                 logits = output.logits
-                                logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
+                                logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1) # token shift
                         else:
                             output = self.forward(
                                 input_ids=x_t[:, -block_size:], 
                                 use_cache=True, 
                                 past_key_values=past_key_values, 
                                 update_past_key_values=False
-                            )
+                            ) # 不维护 block_past_key_values，无任何子块增量计算
                             logits = output.logits
-                            logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1)
+                            logits = torch.cat([logits[:, :1, :], logits[:, :-1, :]], dim=1) # token shift
                             logits = logits[:, start:end]
 
                         if output_scores:
