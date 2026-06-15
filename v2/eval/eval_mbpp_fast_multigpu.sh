@@ -232,6 +232,10 @@ case "$METHOD" in
     MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260608_103114/checkpoint-5000"
     ;;
 
+  Cu8_Reprise)
+    MODEL_PATH="/home/u-shengbf/Codes/Fast-dLLM/v2/output_models/finetune_full_20260614_121044/checkpoint-500"
+    ;;
+
   *)
     echo "Unknown METHOD: ${METHOD}" >&2
     echo "Supported METHOD values: Fast, Qwen2.5, Qwen2.5_LoRA, Qwen3_Ori, Qwen3, Qwen3_Large" >&2

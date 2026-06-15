@@ -23,7 +23,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # 按需调整：模型加载路径
 model_name_or_path="/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-3-8B"
-config="ds_config_zero3_full.json"
+config="ds_config_zero2_full.json"
 # "/home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Qwen-2.5-7B"
 # 按需调整：数据集加载路径
 # dataset_path=data/alpaca/train_conversation
@@ -109,22 +109,23 @@ cmd="deepspeed ${deepspeed_args} \
     --warmup_ratio 0.03 \
     --disable_group_texts 0 \
     --block_size 512 \
-    --per_device_train_batch_size 2 \
+    --per_device_train_batch_size 4 \
     --gradient_accumulation_steps 8 \
     --deepspeed configs/${config} \
     --bf16 \
     --run_name finetune \
     --validation_split_percentage 0 \
-    --logging_steps 1 \
+    --logging_steps 10 \
     --do_train \
     --ddp_timeout 72000 \
     --save_strategy steps \
-    --save_steps 2000 \
+    --save_steps 500 \
     --dataloader_num_workers 8 \
     --preprocessing_num_workers 32 \
     --use_flash_attention 0 \
     --gradient_checkpointing 1 \
-    --max_steps 5000 "
+    --optim adamw_bnb_8bit \
+    --max_steps 500 "
 
 # 改用 ZeRO-3 no offload
 # 新增：max_steps, save_strategy，先跑起来！[verify]
