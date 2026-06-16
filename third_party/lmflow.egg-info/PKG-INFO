@@ -51,6 +51,319 @@ Dynamic: summary
 
 # Fast-dLLM v2: Efficient Block-Diffusion Large Language Model
 
+## 重要说明
+
+1. 致管理员：utopia分支所有前缀为public的分支都是稳定版本，可以merge进主分支。
+
+2. 我已经无力写特别详细的使用说明了-_-，有不懂的请直接问我。
+
+3. 如果有余力解决下面TBD部分列举的问题，请根据兴趣尽情施展才能！
+
+
+---
+
+## TBD【动态更新，汇总了目前能想到的所有待解决的重大问题】
+
+### 1. LoRA排查(训练部分)
+
+简而言之，LoRA目前效果欠佳（即使是和同样只训了1000 steps的full-tune版本对比）。我的结果如下：
+
+注意：请仔细阅读full-tune和lora的脚本和configs区别。现在的LoRA是需要后期merge的，而且使用了flash-attn；与此相对的，Full版本有些地方很不一样【特别提示1：目前Qwen3基底不支持flash-attn，但是Qwen2.5支持flash-attn，需要实时调整configs！】【特别提示2：最新版full_config支持自动保存safetensors类型，即stage3_gather_16bit_weights_on_model_save": true；而lora_config不支持】
+
+05.27补充：Qwen3_1000steps LoRA训练在step760崩溃了，loss降至0，正在尝试寻找原因...
+
+
+### 2. Qwen3-8B适配和调整
+
+简而言之，Qwen3的底层适配已经基本完成了，且保存了一系列中间状态，成果可见v2/base_models/Model-Qwen-3-8B（主要看modeling.py, configuration.py）。【其中没有的.safetensors, merge.txt, vocab.json, tokenizer.json等直接从网上Qwen3对应仓库下载，对tokenizer.json在step 2有一些改装，如果不想麻烦请找我要】
+
+遗留问题如下：
+
+- 没有添加flash-attn支持。
+
+- block_cache使用和不使用版本，生成没有完全对齐（似乎原文也没有要求二者严格对齐？只说不影响质量？）
+
+
+### 3. 长期训练的适配与调参
+
+1. 从Llama-Nemotron中摘取一些math部分数据集？【注意：可能需要转换其格式，可以参考v2/utils中的部分代码】
+
+2. 支持断点续训？【好像已经支持了？只需要传进什么参数？】
+
+3. 精细化调整参数？确定所有的参数设置是否合理？
+
+
+---
+
+## Progress 2025.05.27 更新说明
+
+### 原TBD 2. 进一步改进、加速humaneval与mbpp评测
+
+Done: 请使用eval_xxx_multigpu.sh进行评测，加速效果明显。
+
+
+### 原TBD 3. Qwen3 Workflow
+
+1. Almost Done: Qwen3 的 use_block_cache 已经可以使用了。目前cache似乎起不到加速作用，根据TPF偏低和calls次数极高可知大概率是由于训练不充分所致。（添加了v2/test_local专门用于generate实验，可以先不管这个文件夹）
+
+2. 能跑通且loss曲线看起来正常，正在训练1000 steps版本。训练效果：
+
+```
+# 评测方式：[threshold=1.0, use_block_cache=False]
+model/dataset	humaneval	humaneval+ mbpp	mbpp+
+fast-v2 0.579 0.549 0.683 0.582
+qwen2.5 0.439 0.384 0.505 0.418
+qwen2.5-lora 0.000 0.000 0.048 0.045
+qwen3 0.427 0.396 0.561 0.484
+
+# 评测方式：[threshold=0.9, use_block_cache=True]
+model/dataset	humaneval	humaneval+ mbpp	mbpp+
+fast-v2	0.537	0.506	0.677	0.574
+qwen2.5	0.396	0.36	0.497	0.418
+qwen2.5-lora 0.000 0.000 0.011	0.011
+qwen3	0.402	0.354	0.63	0.519
+```
+
+
+---
+
+## Progress 2025.05.25 更新说明
+
+### 改进内容
+
+1. 在v2/base_models/Model-Qwen-3-8B/下添加了原生Qwen3版本的modeling.py和configuration.py
+
+2. 完全修复了mbpp和humaneval评测逻辑（注意：如果运行eval_humaneval_fast.sh或eval_mbpp_fast.sh报错第x行发现未知符号，只要再bash ?.sh一次就行了）（对mbpp，由于清洗逻辑相对宽松，表现略偏高，但基本符合原文数据）
+
+3. 添加inspect_humaneval_samples.py和inspect_mbpp_samples.py，用于检查coding任务的生成代码是否正确（简要说明为什么要自己写humaneval和mbpp的评测逻辑：似乎原生评测逻辑的接口和Fast类接口不对齐？）
+
+4. 修复LoRA脚本，并最大限度与full脚本对齐【当前状况：能运行、能merge，结果不理想，正在控制变量排查是由于LoRA方法本身不行还是训练方法不对】
+
+### TBD
+
+1. LoRA效果：目前测试效果对比全量微调不佳。若感兴趣，可以在本地自己跑脚本 + coding task评测看效果如何。【注意：当前LoRA设定是不自动合并adapters，需要手动运行merge_lora代码合并】
+
+2. 前期准备结束，正式开始修缮Qwen3-8B子仓库
+
+### 评测结果
+
+```
+# MBPP
+# 论文结果为：0.630, 0.523
+
+# original mbpp
+mbpp (base tests)
+pass@1: 0.683
+mbpp+ (base + extra tests)
+pass@1: 0.582
+
+# qwen2.5_1000 mbpp
+mbpp (base tests)
+pass@1: 0.505
+mbpp+ (base + extra tests)
+pass@1: 0.418
+
+
+# HumanEval
+# 论文结果为：0.634, 0.585
+
+# original humaneval
+humaneval (base tests)
+pass@1: 0.579
+humaneval+ (base + extra tests)
+pass@1: 0.549
+
+# qwen2.5_1000 humaneval
+humaneval (base tests)
+pass@1: 0.439
+humaneval+ (base + extra tests)
+pass@1: 0.384
+```
+
+
+### 其他
+
+训练需要时间。新一轮mini-batch检测与LoRA结果对比最早明天中午才能拿到。
+
+---
+
+## Progress 2026.05.24-2 更新说明
+
+### 改进内容
+
+1. 添加了可以上传的base_models权重：Qwen2.5是改装好的，Qwen3是原先的。注意.gitignore规则，必须忽略跟踪大文件。【这个文件夹的配置是否正确有待进一步检验】
+
+2. 修复了mbpp评测逻辑，复现原文结果，除了一点瑕疵之外基本修正成功；humaneval评测逻辑有待改进。支持一键评测。
+
+3. 修复了本README文件，读起来更美观。
+
+4. 添加了LoRA训练脚本。问题：合并逻辑出错、训练效果未知。
+
+### TBD
+
+1. 修复Humaneval评测逻辑，通过Fast-dLLM/v2/inspect_evalplus_samples.py文件的检查
+
+2. 改良Qwen3.8仓库，引入Qwen3自带modeling等文件作为基线仓库
+
+
+---
+
+## Progress 2026.05.24-1 使用须知
+
+对本仓库添加的架构说明如下：
+
+### `v2/base_models/ref`
+
+- 包含了对Qwen2.5-7B-Instruct进行Fast包装的重要代码组件，以防误删，上传
+
+### `v2/base_models`
+
+- 提醒：关于这个文件夹内部哪些文件要跟踪，请关注 Fast-dLLM/.gitignore 最后部分。总体而言，一方面，大文件不宜加入跟踪，即使在历史状态中出现，也可能导致无法上传的问题；另一方面，大文件都是不怎么改的，可以直接从HF上下载，重点都在其中的代码文件部分。
+- 使用的AR模型基座。
+- 目前包含：Fast-dLLM-v2, Qwen2.5-7B-Instruct, Qwen3-8B
+- 其中Fast-dLLM-v2和Qwen3-8B保留了原始形态（即跟直接从Hugging Face上下载的没区别），Qwen2.5-7B-Instruct的配置已经包装成了Fast类模型
+- 具体怎么包装的呢？见下文，里面有👀符号的，文件内容请参考v2/base_model_ref里面的文件
+
+#### 符号体系
+
+- copy-paste：直接把Fast里面的这个文件复制粘贴/覆盖过去
+- keep：保留Qwen里面的这个文件
+- delete：不用管的文件
+
+#### 下面是改后的Qwen2.5目录
+
+```text
+权重区
+├── model-00001-of-00004.safetensors
+├── model-00002-of-00004.safetensors
+├── model-00003-of-00004.safetensors
+├── model-00004-of-00004.safetensors
+添加区：这些文件是只有Fast里面有的
+├── modeling.py ✅️copy-paste
+├── configuration.py ✅️copy-paste
+├── added_tokens.json ✅️copy-paste
+├── chat_template.jinja ✅️copy-paste
+├── latest ❌️delete
+├── special_tokens_map.json ✅️copy-paste
+修改区：这些文件是两个仓库中都有的
+├── config.json 👀 大改
+├── generation_config.json 👀 change 4.53.1/4.37.0
+├── merges.txt ✅️keep
+├── model.safetensors.index.json 👀 modify 1 line
+├── tokenizer_config.json✅️ copy-paste
+├── tokenizer.json✅️copy-paste
+└── vocab.json ✅️keep
+```
+
+### `v2/train_scripts`
+
+- 添加finetune_a2d_v0.sh，主要训练脚本
+- 已有finetune脚本产生的文件需转换呈safetensors，添加convert_model.sh和convert_inplace_to_safetensors.py
+
+### `v2/utils`
+
+- 一些辅助函数，主要用于将原始Llama-Nemotron转换成可以套用finetune脚本的格式
+- 当然很奇怪的一点是：这个工作理论上开发者做过一次，为啥不直接提供复现方法？
+
+### `v2/data`
+
+- Llama-Nemotron数据集放在这里，太大了我就不上传了，我的组织结构如下：
+
+```text
+.
+├── alpaca
+│   ├── test
+│   │   └── test_252.json
+│   ├── test_conversation
+│   │   └── test_252.json
+│   ├── train
+│   │   └── train_52002.json
+│   └── train_conversation
+│       └── train_52002.json
+├── download.sh
+└── Llama-Nemotron-code-v1.1
+    ├── README.md
+    ├── SFT
+    │   └── code
+    │       └── code_v1.1.jsonl
+    ├── train_conversation # 这里放的是使用utils中代码转换好的文件
+    │   ├── train-00001.json
+    │   ├── ......
+    │   └── train-00049.json
+    └── use # 我第一次只用了转换好的1/50，所以单独拎出来了第一个分片
+        └── train-00000.json
+```
+
+### 评测脚本
+
+- v2/eval_codetask.sh 评测代码任务，需要额外evalplus支持，效果不理想
+- v2/eval_tmp.sh 评测mmlu，本质就是eval_script.sh的一部分
+
+### 其他说明
+
+1. 训练所得模型自动放在v2/output_models/下
+2. 训练调用的部分代码涉及Fast-dLLM/third_party/lmflow等文件夹，不在Fast-dLLM/v2目录下
+
+---
+
+## Progress 2026.05.23 进度说明
+
+### Target 1 直接运行
+
+- 目前都是全量微调，未适配LoRA
+- GPU配置不同，导致：1. 容易报错OOM，2. loss波动大；建议：再试试调整参数？
+- 除了按照下面的要求安装requirements之外，还要安装flash-attn 2.8.3
+
+### Target 2 换 Fast 为 Qwen 2.5
+
+- 已经把包装套好了，套的对不对还不好说...但就loss趋势来看似乎可以...
+
+### Target 3 换 Alpaca 为 Llama-Nemotron
+
+- 放在v2/data/底下，只选了一部分，并做了格式调整
+
+### Target 4 评测
+
+- 评测MMLU对比如下：
+
+#### qwen 2.5 + llama-nemotron 训了1000 steps
+
+| Groups | Version | Filter | n-shot | Metric |  | Value |  | Stderr |
+|---|---:|---|---|---|---|---:|---|---:|
+| mmlu | 2 | none |  | acc | ↑ | 0.6716 | ± | 0.0037 |
+| - humanities | 2 | none |  | acc | ↑ | 0.5911 | ± | 0.0067 |
+| - other | 2 | none |  | acc | ↑ | 0.7184 | ± | 0.0078 |
+| - social sciences | 2 | none |  | acc | ↑ | 0.7836 | ± | 0.0072 |
+| - stem | 2 | none |  | acc | ↑ | 0.6362 | ± | 0.0083 |
+
+#### 直接用Fast-dllm-v2-7B
+
+| Groups | Version | Filter | n-shot | Metric |  | Value |  | Stderr |
+|---|---:|---|---|---|---|---:|---|---:|
+| mmlu | 2 | none |  | acc | ↑ | 0.6797 | ± | 0.0037 |
+| - humanities | 2 | none |  | acc | ↑ | 0.5951 | ± | 0.0066 |
+| - other | 2 | none |  | acc | ↑ | 0.7377 | ± | 0.0076 |
+| - social sciences | 2 | none |  | acc | ↑ | 0.7930 | ± | 0.0072 |
+| - stem | 2 | none |  | acc | ↑ | 0.6384 | ± | 0.0083 |
+
+- 评测coding任务：
+  - 需要额外下载evalplus支持？直接在eval脚本里把task-name改成mbpp，会跑出0.0？见仓库issues
+  - 添加了evalplus支持之后，似乎结果不太理想？【以下都是直接用Fast-dllm-v2-7B测的】
+
+    ```text
+    mbpp (base tests)
+    pass@1: 0.325
+    mbpp+ (base + extra tests)
+    pass@1: 0.265
+    ```
+
+  - humaneval需要后训练吗？（可以肯定的是mbpp不需要）
+
+
+---
+
+## 下面是原来的内容
+
 [![Project](https://img.shields.io/static/v1?label=Project&message=Github&color=blue&logo=github-pages)](https://nvlabs.github.io/Fast-dLLM/v2)
 [![arXiv](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/abs/2509.26328)
 [![Model](https://img.shields.io/badge/🤗-Model-yellow)](https://huggingface.co/Efficient-Large-Model/Fast_dLLM_v2_7B)

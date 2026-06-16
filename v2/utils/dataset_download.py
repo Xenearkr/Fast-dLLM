@@ -1,6 +1,6 @@
 """
-huggingface-cli download Qwen/Qwen3-8B \
-  --local-dir /home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Qwen3-ref \
+hf download Qwen/Qwen2.5-Coder-7B-Instruct \
+  --local-dir /home/u-shengbf/Codes/Fast-dLLM/v2/base_models/Model-Coder \
   --resume-download \
   --local-dir-use-symlinks False
 
